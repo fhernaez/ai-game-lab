@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Design {{ game.name }} — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Design: {{ game.name }}</h1>
+<p class="muted">Configure concepts here; the platform generates the blueprint files.</p>
+
+<form method="post">
+  <div class="panel">
+    <h2>Game identity</h2>
+    <label>Name</label>
+    <input type="text" name="name" value="{{ blueprint.game.name }}">
+    <label>Version</label>
+    <input type="text" name="version" value="{{ blueprint.game.version }}">
+    <label>Description</label>
+    <input type="text" name="description" value="{{ blueprint.game.description }}">
+  </div>
+
+  <div class="panel">
+    <h2>Competition</h2>
+    <div class="grid grid-2">
+      <div>
+        <label>Teams</label>
+        <input type="number" name="competition_teams" value="{{ blueprint.competition.teams }}">
+      </div>
+      <div>
+        <label>Min players</label>
+        <input type="number" name="min_players" value="{{ blueprint.competition.min_players }}">
+      </div>
+      <div>
+        <label>Max players</label>
+        <input type="number" name="max_players" value="{{ blueprint.competition.max_players }}">
+      </div>
+      <div>
+        <label>Turn mode</label>
+        <select name="turn_mode">
+          <option value="sequential" {% if blueprint.competition.turn_mode == 'sequential' %}selected{% endif %}>Sequential</option>
+        </select>
+      </div>
+      <div>
+        <label>Action timeout (s)</label>
+        <input type="number" name="action_timeout_seconds" value="{{ blueprint.competition.action_timeout_seconds }}">
+      </div>
+      <div>
+        <label>Duration type</label>
+        <select name="duration_type">
+          <option value="turns" {% if blueprint.competition.duration.type == 'turns' %}selected{% endif %}>Turns</option>
+          <option value="rounds" {% if blueprint.competition.duration.type == 'rounds' %}selected{% endif %}>Rounds</option>
+        </select>
+      </div>
+      <div>
+        <label>Duration value</label>
+        <input type="number" name="duration_value" value="{{ blueprint.competition.duration.value }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Teams &amp; roles</h2>
+    <label>Agents per team</label>
+    <input type="number" name="agents_per_team" value="{{ blueprint.teams.agents_per_team }}">
+    <label style="margin-top: 1rem;">Roles</label>
+    <table>
+      <thead><tr><th>Role</th><th>Count</th><th>Required</th></tr></thead>
+      <tbody>
+        {% for role in blueprint.teams.roles %}
+        <tr>
+          <td>{{ role.id }}</td>
+          <td><input type="number" name="role_count_{{ loop.index0 }}" value="{{ role.count }}" style="max-width: 80px;"></td>
+          <td><input type="checkbox" name="role_required_{{ loop.index0 }}" {% if role.required %}checked{% endif %}></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Resources</h2>
+    <div class="grid grid-2">
+      <div><label>Team token budget</label><input type="number" name="team_token_budget" value="{{ blueprint.resources.team_token_budget }}"></div>
+      <div><label>Team memory budget</label><input type="number" name="team_memory_budget" value="{{ blueprint.resources.team_memory_budget }}"></div>
+      <div><label>Max concurrent agents</label><input type="number" name="max_concurrent_agents" value="{{ blueprint.resources.max_concurrent_agents }}"></div>
+      <div>
+        <label>Referee enabled</label>
+        <input type="checkbox" name="referee_enabled" {% if blueprint.referee.enabled %}checked{% endif %}>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Playground permissions</h2>
+    <label>Editable (comma-separated)</label>
+    <input type="text" name="playground_editable" value="{{ blueprint.playground.editable | join(', ') }}">
+    <label>Locked (comma-separated)</label>
+    <input type="text" name="playground_locked" value="{{ blueprint.playground.locked | join(', ') }}">
+  </div>
+
+  <div class="panel">
+    <h2>Instructions (plain language)</h2>
+    <label>Game description</label>
+    <textarea name="markdown_game" rows="6">{{ blueprint.markdown.game }}</textarea>
+    <label>Rules</label>
+    <textarea name="markdown_rules" rows="8">{{ blueprint.markdown.rules }}</textarea>
+    <label>Scoring</label>
+    <textarea name="markdown_scoring" rows="6">{{ blueprint.markdown.scoring }}</textarea>
+    <label>Referee</label>
+    <textarea name="markdown_referee" rows="6">{{ blueprint.markdown.referee }}</textarea>
+  </div>
+
+  <div class="panel">
+    <h2>Agent instructions</h2>
+    {% for role in blueprint.teams.roles %}
+    <label>{{ role.id }}</label>
+    <textarea name="markdown_agent_{{ role.id }}" rows="8">{{ blueprint.markdown.agents.get(role.id, '') }}</textarea>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <h2>Skill descriptions</h2>
+    {% for skill, content in blueprint.markdown.skills.items() %}
+    <label>{{ skill }}</label>
+    <textarea name="markdown_skill_{{ skill }}" rows="8">{{ content }}</textarea>
+    {% endfor %}
+  </div>
+
+  <div class="row" style="margin-bottom: 2rem;">
+    <button class="btn" type="submit">Save version</button>
+    <a class="btn btn-secondary" href="{{ url_for('games.detail', game_id=game.id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

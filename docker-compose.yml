@@ -1,0 +1,73 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ai_game_lab}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_game_lab}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai_game_lab} -d ${POSTGRES_DB:-ai_game_lab}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  app:
+    build: .
+    environment: &app_env
+      SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ai_game_lab}:${POSTGRES_PASSWORD:-change-me}@db:5432/${POSTGRES_DB:-ai_game_lab}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      LLM_PROVIDERS: ${LLM_PROVIDERS:-}
+      DEFAULT_PROVIDER: ${DEFAULT_PROVIDER:-mock}
+      DEFAULT_MODEL: ${DEFAULT_MODEL:-mock-model}
+      SEED_ON_START: ${SEED_ON_START:-true}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: ["flask", "--app", "run.py", "worker"]
+    environment:
+      <<: *app_env
+      SEED_ON_START: "false"
+      RUN_MIGRATIONS: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+
+volumes:
+  pgdata:
+  redisdata:
+  ollama:

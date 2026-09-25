@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Technical view — {{ game.name }}{% endblock %}
+{% block content %}
+<h1>Technical view: {{ game.name }}</h1>
+<p class="muted">
+  The generated blueprint. Edit YAML/JSON to fine-tune the configuration (validated and
+  reconciled on save); Markdown instruction files are stored verbatim as authored text.
+</p>
+
+<form method="post">
+  {% for name in files | sort %}
+  <div class="panel">
+    <div class="row" style="justify-content: space-between;">
+      <h2 style="margin: 0;">{{ name }}</h2>
+      <span class="badge">{{ name.split('.')[-1] }}</span>
+    </div>
+    <input type="hidden" name="filename" value="{{ name }}">
+    <textarea name="content_{{ name }}" rows="{{ file_rows[name] }}">{{ files[name] }}</textarea>
+  </div>
+  {% endfor %}
+
+  <div class="row" style="margin-bottom: 2rem;">
+    <button class="btn" type="submit">Save technical edits</button>
+    <a class="btn btn-secondary" href="{{ url_for('games.design', game_id=game.id) }}">Back to design</a>
+  </div>
+</form>
+{% endblock %}

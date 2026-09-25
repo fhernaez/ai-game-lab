@@ -1,0 +1,13 @@
+playground:
+  editable:
+    - team_instructions
+    - agent_instructions
+    - selected_skills
+    - model_selection
+    - token_distribution
+    - memory_distribution
+  locked:
+    - rules
+    - scoring
+    - referee
+    - action_schema

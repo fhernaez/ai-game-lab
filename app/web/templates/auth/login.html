@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Log in — AI Game Lab{% endblock %}
+{% block content %}
+<div class="panel" style="max-width: 400px; margin: 4rem auto;">
+  <h1>Log in</h1>
+  <form method="post">
+    <label>Username</label>
+    <input type="text" name="username" required>
+    <label>Password</label>
+    <input type="password" name="password" required>
+    <div style="margin-top: 1rem;">
+      <button class="btn" type="submit">Log in</button>
+    </div>
+  </form>
+  <p class="muted">No account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+game:
+  id: ai_team_sports
+  name: AI Team Sports Challenge
+  version: 1.0.0
+  description: Generic turn-based team sport simulation.
+
+competition:
+  min_players: 2
+  max_players: 2
+  teams: 2
+  turn_mode: sequential
+  action_timeout_seconds: 30
+  duration:
+    type: turns
+    value: 30
+
+teams:
+  agents_per_team: 4
+  roles:
+    - id: trainee
+      count: 1
+      required: true
+    - id: attacker
+      count: 1
+      required: true
+    - id: defender
+      count: 1
+      required: true
+    - id: specialist
+      count: 1
+      required: false
+
+referee:
+  enabled: true
+  agent_template: referee
+
+resources:
+  team_token_budget: 60000
+  team_memory_budget: 16000
+  max_concurrent_agents: 4
+
+engine:
+  actions:
+    - id: MOVE
+    - id: PASS
+    - id: DEFEND
+    - id: ATTACK
+    - id: SHOOT
+    - id: SUPPORT
+    - id: INTERCEPT
+  scoring:
+    - id: goal
+      kind: event
+      event: SHOOT
+      points: 3
+      probability: 0.4
+    - id: attack
+      kind: event
+      event: ATTACK
+      points: 1
+      probability: 0.3
+  win: highest_score

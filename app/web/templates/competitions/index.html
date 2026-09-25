@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Competitions — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Competitions</h1>
+<div class="panel">
+  {% if competitions %}
+  <table>
+    <thead><tr><th>ID</th><th>Game</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for c in competitions %}
+      <tr>
+        <td>{{ c.id }}</td>
+        <td>{{ c.game_version.game.name }}</td>
+        <td><span class="badge badge-{{ c.status }}">{{ c.status }}</span></td>
+        <td>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('competitions.view', competition_id=c.id) }}">View</a>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('replay.view', competition_id=c.id) }}">Replay</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No competitions yet. Run a simulation from the Playground.</p>
+  {% endif %}
+</div>
+{% endblock %}

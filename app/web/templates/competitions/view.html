@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Competition #{{ competition.id }} — AI Game Lab{% endblock %}
+{% block content %}
+<div class="row" style="justify-content: space-between;">
+  <h1>Competition #{{ competition.id }} — {{ competition.game_version.game.name }}</h1>
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('replay.view', competition_id=competition.id) }}">Event timeline</a>
+</div>
+
+<div id="competition-root" data-competition-id="{{ competition.id }}" data-status="{{ competition.status }}"></div>
+
+<div class="viz-wrap">
+  <div class="panel" id="viz">
+    <div class="scoreboard" id="scoreboard"></div>
+    <svg id="graph" viewBox="0 0 800 520" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="sidebar">
+    <h2 style="margin-top: 0;">Interaction log</h2>
+    <div class="event-log" id="event-log"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/visualization.js') }}"></script>
+{% endblock %}

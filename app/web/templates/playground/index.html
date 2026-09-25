@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Playground — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Playground</h1>
+
+<div class="panel">
+  <h2>New playground</h2>
+  <form method="post" action="{{ url_for('playground.create') }}" class="row">
+    <select name="game_version_id" required>
+      <option value="" disabled selected>Select a game version…</option>
+      {% for version in versions %}
+      <option value="{{ version.id }}">{{ version.game.name }} — v{{ version.version }}</option>
+      {% endfor %}
+    </select>
+    <input type="text" name="name" placeholder="Playground name" style="max-width: 260px;">
+    <button class="btn" type="submit">Create</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>My playgrounds</h2>
+  {% if playgrounds %}
+  <table>
+    <thead><tr><th>Name</th><th>Game</th><th></th></tr></thead>
+    <tbody>
+      {% for p in playgrounds %}
+      <tr>
+        <td><a href="{{ url_for('playground.configure', playground_id=p.id) }}">{{ p.name }}</a></td>
+        <td>{{ p.game_version.game.name }}</td>
+        <td><a class="btn btn-secondary btn-sm" href="{{ url_for('playground.configure', playground_id=p.id) }}">Configure</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No playgrounds yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
