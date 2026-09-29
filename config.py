@@ -38,8 +38,30 @@ def _database_uri():
     return "sqlite:///" + str(BASE_DIR / "instance" / "app.db")
 
 
+def _secret_key():
+    """Resolve SECRET_KEY, failing loudly when it is set but empty.
+
+    Docker Compose substitutes an undefined ``${VAR}`` with an empty string,
+    so a missing variable becomes ``SECRET_KEY=""`` rather than being absent.
+    An empty key makes Flask fail on the first request (no session secret).
+    We raise at startup instead of falling back to a guessable key in that
+    case, while still defaulting to a dev key when the variable is unset
+    (plain local development).
+    """
+    raw = os.environ.get("SECRET_KEY")
+    if raw is None:
+        return "dev-secret-key-change-me"
+    value = raw.strip()
+    if not value:
+        raise RuntimeError(
+            "SECRET_KEY is set but empty. Provide a unique, secret SECRET_KEY "
+            "(check your .env / docker-compose environment)."
+        )
+    return value
+
+
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
+    SECRET_KEY = _secret_key()
 
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False

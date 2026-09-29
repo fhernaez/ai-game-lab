@@ -99,7 +99,7 @@ def register_cli(app):
     def worker_command(queue):
         """Start a background worker that processes queued competition runs."""
         from redis import Redis
-        from rq import Connection, Queue, Worker
+        from rq import Queue, Worker
 
         redis_url = app.config.get("REDIS_URL") or app.config.get("RQ_REDIS_URL")
         if not redis_url:
@@ -107,7 +107,6 @@ def register_cli(app):
                 "REDIS_URL is not configured; cannot start a worker."
             )
         connection = Redis.from_url(redis_url)
-        with Connection(connection):
-            worker = Worker([Queue(queue, connection=connection)])
-            click.echo(f"Worker listening on queue {queue!r}.")
-            worker.work()
+        worker = Worker([Queue(queue, connection=connection)], connection=connection)
+        click.echo(f"Worker listening on queue {queue!r}.")
+        worker.work()
