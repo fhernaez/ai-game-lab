@@ -102,9 +102,9 @@ def register_cli(app):
         click.echo(f"Created {role} user {username!r}.")
 
     @app.cli.command("worker")
-    @click.option("--queue", default="competitions", help="Queue name to listen on.")
+    @click.option("--queue", default="matches", help="Queue name to listen on.")
     def worker_command(queue):
-        """Start a background worker that processes queued competition runs."""
+        """Start a background worker that processes queued match runs."""
         from redis import Redis
         from rq import Queue, Worker
 

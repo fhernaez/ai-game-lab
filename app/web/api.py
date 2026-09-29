@@ -40,6 +40,8 @@ def state(match_id):
         {
             "status": match.status,
             "difficulty": match.difficulty,
+            "host_ready": match.host_ready,
+            "guest_ready": match.guest_ready,
             "final_state": match.final_state_json,
             "teams": teams,
         }

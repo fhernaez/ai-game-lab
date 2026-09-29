@@ -46,11 +46,33 @@
 {% if online %}
 <div class="panel">
   <h2>Online players</h2>
-  <div class="row">
+  <div class="row" id="online-badges">
     {% for u in online %}
     <span class="badge">{{ u.username }}</span>
     {% endfor %}
   </div>
 </div>
 {% endif %}
+
+<script>
+  // Live online-players list.
+  (function () {
+    const box = document.getElementById("online-badges");
+    if (!box) return;
+    setInterval(async () => {
+      try {
+        const data = await (await fetch("/api/online-users")).json();
+        box.innerHTML = "";
+        data.users.forEach((u) => {
+          const b = document.createElement("span");
+          b.className = "badge"; b.textContent = u.username;
+          box.appendChild(b);
+        });
+      } catch (e) {}
+    }, 3000);
+  })();
+
+  // Refresh the page periodically so invitations and match status changes appear.
+  setTimeout(() => { if (document.visibilityState === "visible") window.location.reload(); }, 10000);
+</script>
 {% endblock %}

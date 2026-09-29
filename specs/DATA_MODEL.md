@@ -23,12 +23,13 @@ Team
 - player_id        # the user who owns this team
 - name
 - difficulty       # easy | medium | hard (the match's difficulty)
-- configuration_json   # {"budget_spent": int, "archetype": str|null, "strategy": str}
+- configuration_json   # {"archetype": str|null, "strategy": str}
 - created_at
 - updated_at
 ```
 
-A **Team** owns exactly two **Player** agents.
+A **Team** owns exactly two **Player** agents. (The point-buy cost of a team is
+computed from its two players' attribute sliders at validation time, not stored.)
 
 ## Player (agent)
 

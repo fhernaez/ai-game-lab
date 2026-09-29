@@ -147,11 +147,15 @@ The user distributes a **budget** across the 7 athlete attributes of their **two
 agents**. Each slider point (1–10) costs **1 point**; every attribute defaults to **1**
 (costing 0). Internal float scale: `0.1 – 1.0`.
 
-| Difficulty | User budget | AI budget | Average attribute level achievable |
-|-----------|-------------|-----------|------------------------------------|
-| EASY | 45 | 12 (weak) | ~7.4/10 — two elite all-rounders |
-| MEDIUM | 25 | 25 (symmetric) | ~4.5/10 — specialized players |
-| HARD | 12 | 32 (strong) | ~2.7/10 — mandatory flaws |
+| Difficulty | Budget | Average attribute level achievable |
+|-----------|-------------|------------------------------------|
+| EASY | 45 | ~7.4/10 — two elite all-rounders |
+| MEDIUM | 25 | ~4.5/10 — specialized players |
+| HARD | 12 | ~2.7/10 — mandatory flaws |
+
+In V3, matches are **1v1 human-vs-human**: each of the two players receives the same
+difficulty budget. (A single-player "vs AI" mode with an AI budget per difficulty is
+reserved for a future version.)
 
 ### 6.1 Pre-set archetypes (quick setup, 25 points each — tuned for Medium)
 

@@ -2,7 +2,9 @@
 {% block title %}Configure team — AI Game Lab{% endblock %}
 {% block content %}
 <h1>{{ team.name }}</h1>
-<p class="muted">Difficulty: {{ match.difficulty }} · Budget: {{ budget }} points · Spent: {{ cost }} points</p>
+<p class="muted">Difficulty: {{ match.difficulty }} · Budget: <strong>{{ budget }}</strong> points ·
+  Spent: <strong id="cost-value">{{ cost }}</strong> ·
+  Remaining: <strong id="remaining-value">{{ budget - cost }}</strong></p>
 
 <form method="post">
   <div class="panel">
@@ -81,14 +83,33 @@
 
 <script>
   const ARCHETYPES = {{ archetypes | tojson }};
+  const BUDGET = {{ budget }};
   const select = document.getElementById('archetype-select');
   const desc = document.getElementById('archetype-desc');
+  const costEl = document.getElementById('cost-value');
+  const remainEl = document.getElementById('remaining-value');
+
+  function recompute() {
+    let cost = 0;
+    document.querySelectorAll('input[type=range]').forEach((slider) => {
+      cost += Math.max(0, parseInt(slider.value, 10) - 1);
+    });
+    costEl.textContent = cost;
+    remainEl.textContent = BUDGET - cost;
+    remainEl.style.color = (BUDGET - cost) < 0 ? '#f87171' : '';
+  }
+
+  document.querySelectorAll('input[type=range]').forEach((slider) => {
+    slider.addEventListener('input', () => {
+      slider.nextElementSibling.textContent = slider.value;
+      recompute();
+    });
+  });
+
   select.addEventListener('change', () => {
     const a = ARCHETYPES[select.value];
     desc.textContent = a ? a.description : '';
-    if (!a) return;
-    const rows = document.querySelectorAll('.attr-row');
-    // each player block: 7 attribute rows; fill both players
+    if (!a) { recompute(); return; }
     document.querySelectorAll('input[type=range]').forEach((slider) => {
       const key = slider.name.split('_').slice(-1)[0];
       if (key in a.attributes) {
@@ -96,6 +117,7 @@
         slider.nextElementSibling.textContent = a.attributes[key];
       }
     });
+    recompute();
   });
 </script>
 {% endblock %}

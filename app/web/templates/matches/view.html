@@ -14,7 +14,7 @@
   <div class="row" style="flex-wrap: wrap; gap: 0.75rem;">
     {% if is_host and match.status == 'created' %}
       <form method="post" action="{{ url_for('matchmaking.invite', match_id=match.id) }}" class="row">
-        <select name="username" required>
+        <select name="username" id="invite-select" required>
           <option value="" disabled selected>Invite an online player…</option>
           {% for u in online %}
           <option value="{{ u.username }}">{{ u.username }}</option>
@@ -77,4 +77,43 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/volleyball_court.js') }}"></script>
+<script>
+  // Live status/ready polling: reload the page when the match state changes so the
+  // controls and the simulation stay in sync between both players' sessions.
+  (function () {
+    const matchId = {{ match.id }};
+    const initial = { status: "{{ match.status }}", h: {{ 'true' if match.host_ready else 'false' }}, g: {{ 'true' if match.guest_ready else 'false' }} };
+    const terminal = ["finished", "cancelled", "declined", "failed"];
+    if (terminal.includes(initial.status)) return;
+    setInterval(async () => {
+      try {
+        const st = await (await fetch(`/api/matches/${matchId}/state`)).json();
+        const changed =
+          st.status !== initial.status ||
+          st.host_ready !== initial.h ||
+          st.guest_ready !== initial.g;
+        if (changed) window.location.reload();
+      } catch (e) {}
+    }, 3000);
+  })();
+
+  // Live online-users list for the invite dropdown.
+  (function () {
+    const sel = document.getElementById("invite-select");
+    if (!sel) return;
+    setInterval(async () => {
+      try {
+        const data = await (await fetch("/api/online-users")).json();
+        const current = sel.value;
+        sel.innerHTML = '<option value="" disabled selected>Invite an online player…</option>';
+        data.users.forEach((u) => {
+          const o = document.createElement("option");
+          o.value = u.username; o.textContent = u.username;
+          if (u.username === current) o.selected = true;
+          sel.appendChild(o);
+        });
+      } catch (e) {}
+    }, 3000);
+  })();
+</script>
 {% endblock %}
