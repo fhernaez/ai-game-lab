@@ -1,53 +1,63 @@
-"""Deterministic referee: authoritative validation and scoring resolution.
-
-The referee is deliberately deterministic. The LLM may interpret ambiguity,
-but the authoritative state transition always goes through these functions.
-"""
+"""The referee: an LLM model whose structured verdict is fenced by a guard."""
 
 
-def get_actions(blueprint):
-    return blueprint.get("engine", {}).get("actions", [])
+def clamp_score(verdict_score, blueprint):
+    """Clamp a referee score to the scoring rules (min 0, max from scoring)."""
+    scoring = (blueprint.get("dialogue") or {}).get("scoring") or []
+    max_score = 0
+    for rule in scoring:
+        if rule.get("kind") == "criteria":
+            max_score += int(rule.get("max", 0)) * len(rule.get("criteria", []))
+        elif rule.get("kind") == "event":
+            max_score = max(max_score, int(rule.get("points", 0)))
+    try:
+        score = int(verdict_score)
+    except (TypeError, ValueError):
+        score = 0
+    return max(0, min(score, max_score))
 
 
-def allowed_actions_for(blueprint, role):
-    """Return the action ids a given role may declare."""
-    allowed = []
-    for action in get_actions(blueprint):
-        roles = action.get("roles")
-        if not roles or role in roles:
-            allowed.append(action["id"])
-    return allowed
+class Verdict:
+    def __init__(self, accepted, score, explanation):
+        self.accepted = bool(accepted)
+        self.score = score
+        self.explanation = explanation or ""
+
+    def to_dict(self):
+        return {
+            "accepted": self.accepted,
+            "score": self.score,
+            "explanation": self.explanation,
+        }
 
 
-def validate_action(blueprint, role, action):
-    if not isinstance(action, dict):
-        return False, "action must be a mapping"
-    action_id = action.get("action")
-    allowed = allowed_actions_for(blueprint, role)
-    if action_id not in allowed:
-        return False, f"action {action_id!r} is not allowed for role {role!r}"
-    return True, ""
+class Referee:
+    """Wraps an LLM provider + model/parameters and returns guarded verdicts."""
+
+    def __init__(self, provider, model, params=None):
+        self.provider = provider
+        self.model = model
+        self.params = params or {}
+
+    def evaluate(self, blueprint, action, state, round_messages, mock_output=None):
+        from .prompts import build_referee_prompt
+
+        messages = build_referee_prompt(blueprint, action, state, round_messages)
+        result = self.provider.complete(
+            messages, model=self.model, mock_output=mock_output, **self.params
+        )
+        raw = result.content
+        parsed = result.parse_json(default={})
+        return raw, parsed, result
 
 
-def resolve_scoring(blueprint, action_type, rng):
-    """Deterministically resolve the score change for an accepted action."""
-    engine = blueprint.get("engine", {})
-    scoring_rules = engine.get("scoring", [])
-    points = 0
-    explanations = []
-
-    for rule in scoring_rules:
-        kind = rule.get("kind")
-        if kind == "event" and rule.get("event") == action_type:
-            if rng.random() < float(rule.get("probability", 0.0)):
-                earned = int(rule.get("points", 1))
-                points += earned
-                explanations.append(f"{rule.get('id', action_type)}: +{earned}")
-        elif kind == "criteria":
-            earned = 0
-            for criterion in rule.get("criteria", []):
-                earned += rng.randint(0, int(rule.get("max", 10)))
-            points += earned
-            explanations.append(f"{rule.get('id', 'criteria_score')}: +{earned}")
-
-    return points, ("; ".join(explanations) if explanations else "no score change")
+def apply_guard(blueprint, parsed):
+    """Validate and clamp a parsed referee verdict; returns a Verdict (never None)."""
+    if not isinstance(parsed, dict):
+        return Verdict(False, 0, "Invalid verdict format.")
+    accepted = parsed.get("accepted")
+    if not isinstance(accepted, bool):
+        accepted = False
+    score = clamp_score(parsed.get("score"), blueprint)
+    explanation = str(parsed.get("explanation", ""))
+    return Verdict(accepted, score, explanation)

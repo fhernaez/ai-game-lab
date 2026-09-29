@@ -1,4 +1,4 @@
-"""Admin settings: role-level default provider/model, stored in the DB."""
+"""Admin settings: role defaults, global default model, and per-provider model lists."""
 
 from flask import current_app
 
@@ -7,6 +7,7 @@ from ..models import AppSetting, GameVersion
 
 ROLE_DEFAULTS_KEY = "role_defaults"
 DEFAULT_MODEL_KEY = "default_model"
+PROVIDER_MODELS_KEY = "provider_models"
 
 
 def _get(key, default=None):
@@ -40,23 +41,34 @@ def set_default_model(ref):
     _set(DEFAULT_MODEL_KEY, ref or "")
 
 
+def get_provider_models():
+    """{provider_id: [models]}, seeded from env LLM_PROVIDERS on first use."""
+    saved = _get(PROVIDER_MODELS_KEY)
+    if saved is not None:
+        return saved
+    env_models = {"mock": ["mock-model"]}
+    for entry in current_app.config.get("LLM_PROVIDERS") or []:
+        env_models[entry.get("id")] = entry.get("models") or []
+    return env_models
+
+
+def set_provider_models(mapping):
+    _set(PROVIDER_MODELS_KEY, dict(mapping))
+
+
 def available_roles():
-    """Union of role ids across all game versions (for the admin editor)."""
+    """Union of crew role ids across all game versions."""
     roles = set()
     for version in GameVersion.query.all():
         blueprint = version.blueprint_json or {}
-        for role in blueprint.get("teams", {}).get("roles", []):
+        for role in (blueprint.get("crew") or {}).get("roles", []):
             if role.get("id"):
                 roles.add(role["id"])
     return sorted(roles)
 
 
 def resolve_agent_model(role, explicit_model):
-    """Return the effective model reference ("provider:model") for an agent.
-
-    Precedence: explicit agent model -> role default -> global default -> None
-    (the caller then falls back to the registry's global default).
-    """
+    """Effective model reference for a crew member."""
     if explicit_model:
         return explicit_model
     role_defaults = get_role_defaults()

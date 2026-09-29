@@ -68,16 +68,18 @@ def design(game_id):
 
 def _blueprint_from_form(current):
     form = request.form
-    roles = current.get("teams", {}).get("roles", [])
-    agents_md = dict(current.get("markdown", {}).get("agents", {}))
-    skills_md = dict(current.get("markdown", {}).get("skills", {}))
+    roles = (current.get("crew", {}).get("roles")) or []
+    agents_md = dict((current.get("markdown", {})).get("agents", {}))
+    skills_md = dict((current.get("markdown", {})).get("skills", {}))
 
+    speaker_idx = _int(form.get("speaker_role"), 0)
     new_roles = []
     for idx, role in enumerate(roles):
         new_roles.append(
             {
                 "id": role["id"],
-                "count": _int(form.get(f"role_count_{idx}"), role.get("count", 1)),
+                "speak_order": _int(form.get(f"role_speak_order_{idx}"), idx + 1),
+                "speaker": idx == speaker_idx,
                 "required": form.get(f"role_required_{idx}") == "on",
             }
         )
@@ -93,30 +95,22 @@ def _blueprint_from_form(current):
             "description": form.get("description", current["game"].get("description", "")),
         },
         "competition": {
-            "min_players": _int(form.get("min_players"), 2),
-            "max_players": _int(form.get("max_players"), 2),
-            "teams": _int(form.get("competition_teams"), 2),
-            "turn_mode": form.get("turn_mode", "sequential"),
-            "action_timeout_seconds": _int(form.get("action_timeout_seconds"), 30),
-            "duration": {
-                "type": form.get("duration_type", "turns"),
-                "value": _int(form.get("duration_value"), 20),
-            },
+            "teams": 2,
+            "default_round_budget": _int(form.get("default_round_budget"), 6),
+            "wall_clock_timeout_seconds": _int(form.get("wall_clock_timeout"), 600),
         },
-        "teams": {
-            "agents_per_team": _int(form.get("agents_per_team"), 3),
-            "roles": new_roles,
-        },
+        "crew": {"roles": new_roles},
         "referee": {
             "enabled": form.get("referee_enabled") == "on",
-            "agent_template": current.get("referee", {}).get("agent_template", "referee"),
+            "role": "referee",
+            "response_format": "json",
         },
         "resources": {
             "team_token_budget": _int(form.get("team_token_budget"), 50000),
             "team_memory_budget": _int(form.get("team_memory_budget"), 12000),
             "max_concurrent_agents": _int(form.get("max_concurrent_agents"), 3),
         },
-        "engine": current.get("engine", {}),
+        "dialogue": current.get("dialogue", {}),
         "playground": {
             "editable": _comma("playground_editable") or current.get("playground", {}).get("editable", []),
             "locked": _comma("playground_locked") or current.get("playground", {}).get("locked", []),

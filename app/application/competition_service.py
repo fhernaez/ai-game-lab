@@ -3,18 +3,14 @@ from datetime import datetime, timezone
 
 from flask import current_app, has_app_context
 
-from ..domain.engine import GameEngine
+from ..domain.crew import Crew, CrewMember
+from ..domain.dialogue import CompetitionCancelled, DialogueRunner
+from ..domain.referee import Referee
 from ..extensions import db
 from ..infrastructure.llm import get_registry
 from ..infrastructure.llm import registry as llm_registry
 from ..infrastructure.queue import enqueue
-from ..models import (
-    Action,
-    Competition,
-    CompetitionTeam,
-    Event,
-    ResourceUsage,
-)
+from ..models import Action, Competition, Event, ResourceUsage
 from . import settings_service
 
 
@@ -22,62 +18,9 @@ def _utcnow():
     return datetime.now(timezone.utc)
 
 
-def build_teams_snapshot(playground):
-    """Materialize teams + agents from a playground into runtime dicts."""
-    teams = []
-    for team in playground.teams:
-        agents = []
-        for ac in team.agents:
-            cfg = ac.configuration_json or {}
-            skills = cfg.get("selected_skills") or cfg.get("skills") or []
-            agents.append(
-                {
-                    "id": f"team{team.id}-agent{ac.id}",
-                    "role": ac.role,
-                    "name": f"{ac.role.title()}",
-                    "skills": skills,
-                    "model": cfg.get("model") or "",
-                }
-            )
-        team_cfg = team.configuration_json or {}
-        teams.append(
-            {
-                "name": team.name,
-                "instructions": team_cfg.get("instructions", ""),
-                "agents": agents,
-            }
-        )
-    return teams
-
-
-def create_competition(playground, user):
-    teams = build_teams_snapshot(playground)
-    seed = random.randint(0, 10**9)
-    competition = Competition(
-        game_version_id=playground.game_version_id,
-        status="created",
-        configuration_json={
-            "game_id": playground.game_version.blueprint_json["game"]["id"],
-            "seed": seed,
-            "teams": teams,
-        },
-    )
-    db.session.add(competition)
-    db.session.flush()
-
-    for team in playground.teams:
-        db.session.add(
-            CompetitionTeam(
-                competition_id=competition.id,
-                team_id=team.id,
-                player_id=user.id if not user.is_anonymous else None,
-            )
-        )
-    db.session.commit()
-    return competition
-
-
-def enqueue_competition(competition):
+def start_competition(competition):
+    if competition.status in ("running", "finished", "cancelled", "declined"):
+        return
     competition.status = "queued"
     db.session.commit()
     enqueue("competitions", run_competition_job, competition.id)
@@ -95,13 +38,34 @@ def run_competition_job(competition_id):
             _run(competition_id)
 
 
-def _make_resolver(registry, role_defaults, global_default):
-    def resolve(agent):
-        ref = (
-            agent.get("model")
-            or role_defaults.get(agent["role"])
-            or global_default
+def build_crews(competition):
+    """Materialize DB crews into domain Crew objects."""
+    crews = []
+    for db_crew in competition.crews:
+        members = []
+        for m in db_crew.members:
+            cfg = m.configuration_json or {}
+            members.append(
+                CrewMember(
+                    role=m.role,
+                    speak_order=m.speak_order,
+                    is_speaker=m.is_speaker,
+                    config=cfg,
+                )
+            )
+        crews.append(
+            Crew(
+                name=db_crew.name,
+                members=members,
+                instructions=(db_crew.configuration_json or {}).get("instructions", ""),
+            )
         )
+    return crews
+
+
+def _make_resolver(registry, role_defaults, global_default):
+    def resolve(model_ref):
+        ref = model_ref or role_defaults.get("__default__") or global_default
         return llm_registry.resolve_model(
             registry,
             ref,
@@ -112,28 +76,56 @@ def _make_resolver(registry, role_defaults, global_default):
     return resolve
 
 
+def _make_referee(registry, role_defaults, global_default):
+    ref = role_defaults.get("referee") or global_default
+    provider, model = llm_registry.resolve_model(
+        registry,
+        ref,
+        default_provider=current_app.config.get("DEFAULT_PROVIDER", "mock"),
+        default_model=current_app.config.get("DEFAULT_MODEL", "mock-model"),
+    )
+    return Referee(provider, model, params={"temperature": 0.2, "response_format": "json"})
+
+
+def _should_stop(competition_id):
+    def check():
+        competition = db.session.get(Competition, competition_id)
+        return bool(
+            competition
+            and (competition.configuration_json or {}).get("cancel_requested")
+        )
+
+    return check
+
+
 def _run(competition_id):
     competition = db.session.get(Competition, competition_id)
     if competition is None:
         return
 
     blueprint = competition.game_version.blueprint_json
-    teams = competition.configuration_json["teams"]
-    seed = competition.configuration_json.get("seed", 0)
+    crews = build_crews(competition)
+    seed = (competition.configuration_json or {}).get("seed", 0)
 
     registry = get_registry()
     role_defaults = settings_service.get_role_defaults()
     global_default = settings_service.get_default_model()
-    resolve = _make_resolver(registry, role_defaults, global_default)
 
-    engine = GameEngine(blueprint, resolve, seed=seed)
+    resolve = _make_resolver(registry, role_defaults, global_default)
+    referee = _make_referee(registry, role_defaults, global_default)
+    runner = DialogueRunner(blueprint, resolve, referee, seed=seed)
 
     competition.status = "running"
     competition.started_at = _utcnow()
     db.session.commit()
 
     try:
-        events, final_state, usages = engine.run(teams)
+        events, final_state, usages = runner.run(crews, should_stop=_should_stop(competition_id))
+    except CompetitionCancelled:
+        competition.status = "cancelled"
+        competition.finished_at = _utcnow()
+        db.session.commit()
+        return
     except Exception as exc:
         competition.status = "failed"
         competition.finished_at = _utcnow()
@@ -148,6 +140,33 @@ def _run(competition_id):
     competition.status = "finished"
     competition.finished_at = _utcnow()
     competition.final_state_json = final_state
+    db.session.commit()
+
+
+def stop_competition(competition):
+    if competition.status == "queued":
+        competition.status = "cancelled"
+        db.session.commit()
+        return
+    if competition.status == "running":
+        config = dict(competition.configuration_json or {})
+        config["cancel_requested"] = True
+        competition.configuration_json = config
+        db.session.commit()
+
+
+def delete_competition(competition):
+    Event.query.filter_by(competition_id=competition.id).delete()
+    Action.query.filter_by(competition_id=competition.id).delete()
+    ResourceUsage.query.filter_by(competition_id=competition.id).delete()
+    for crew in competition.crews:
+        from ..models import CrewMember
+
+        CrewMember.query.filter_by(crew_id=crew.id).delete()
+    from ..models import Crew
+
+    Crew.query.filter_by(competition_id=competition.id).delete()
+    db.session.delete(competition)
     db.session.commit()
 
 
@@ -166,22 +185,22 @@ def _persist_events(competition, events):
 
 
 def _persist_actions(competition, events):
-    turn = 0
+    round_number = 0
     for event in events:
-        if event["event_type"] == "TURN_STARTED":
-            turn = event["payload"].get("iteration", turn)
-        if event["event_type"] == "ACTION_DECLARED":
+        if event["event_type"] == "ROUND_STARTED":
+            round_number = event["payload"].get("round", round_number)
+        if event["event_type"] == "ACTION_PROPOSED":
             payload = event["payload"]
             action = payload.get("action", {})
             db.session.add(
                 Action(
                     competition_id=competition.id,
-                    turn_number=turn,
-                    team_id=0,
-                    agent_id=event.get("actor_id"),
-                    action_type=action.get("action", ""),
+                    round_number=round_number,
+                    crew_id=0,
+                    member_id=0,
+                    action_type=action.get("action", "") if isinstance(action, dict) else str(action),
                     request_json=action,
-                    result_json={"status": "declared"},
+                    result_json={"status": "proposed"},
                 )
             )
     db.session.flush()
@@ -192,7 +211,7 @@ def _persist_usage(competition, usages):
         db.session.add(
             ResourceUsage(
                 competition_id=competition.id,
-                agent_id=usage.get("agent_id"),
+                member_id=usage.get("member_id"),
                 tokens_input=usage.get("tokens_input", 0),
                 tokens_output=usage.get("tokens_output", 0),
                 model=usage.get("model", ""),

@@ -1,16 +1,12 @@
-"""Deterministic validation shared by the compiler and the importer.
-
-Both directions run the same rules so that a blueprint is valid regardless
-of whether it came from the GUI or the Technical view.
-"""
+"""Deterministic validation shared by the compiler and the importer."""
 
 REQUIRED_TOP_LEVEL = [
     "game",
     "competition",
-    "teams",
+    "crew",
     "referee",
     "resources",
-    "engine",
+    "dialogue",
     "playground",
     "markdown",
 ]
@@ -33,55 +29,53 @@ def validate_blueprint(blueprint):
         errors.append("game.name is required")
 
     competition = blueprint.get("competition") or {}
-    if not competition.get("teams"):
-        errors.append("competition.teams is required")
-    duration = competition.get("duration") or {}
-    if duration.get("type") not in ("turns", "rounds"):
-        errors.append("competition.duration.type must be 'turns' or 'rounds'")
-    if not isinstance(duration.get("value"), int) or duration.get("value", 0) <= 0:
-        errors.append("competition.duration.value must be a positive integer")
+    if not isinstance(competition.get("default_round_budget"), int) or competition.get("default_round_budget", 0) <= 0:
+        errors.append("competition.default_round_budget must be a positive integer")
 
-    teams = blueprint.get("teams") or {}
-    roles = teams.get("roles") or []
+    crew = blueprint.get("crew") or {}
+    roles = crew.get("roles") or []
     if not isinstance(roles, list) or not roles:
-        errors.append("teams.roles must be a non-empty list")
+        errors.append("crew.roles must be a non-empty list")
     role_ids = set()
+    speaker_count = 0
     for role in roles:
         if not role.get("id"):
-            errors.append("each role needs an id")
+            errors.append("each crew role needs an id")
             continue
         if role.get("id") in role_ids:
             errors.append(f"duplicate role id: {role['id']}")
         role_ids.add(role.get("id"))
-        if not isinstance(role.get("count"), int) or role.get("count", 0) < 1:
-            errors.append(f"role {role.get('id')} must have a positive count")
+        if not isinstance(role.get("speak_order"), int):
+            errors.append(f"role {role.get('id')} needs an integer speak_order")
+        if role.get("speaker"):
+            speaker_count += 1
+    if speaker_count != 1:
+        errors.append("crew.roles must have exactly one speaker")
 
     resources = blueprint.get("resources") or {}
     for key in ("team_token_budget", "team_memory_budget"):
         if not isinstance(resources.get(key), int) or resources.get(key, 0) < 0:
             errors.append(f"resources.{key} must be a non-negative integer")
 
-    engine = blueprint.get("engine") or {}
-    actions = engine.get("actions") or []
+    dialogue = blueprint.get("dialogue") or {}
+    actions = dialogue.get("actions") or []
     action_ids = set()
     if not isinstance(actions, list) or not actions:
-        errors.append("engine.actions must be a non-empty list")
+        errors.append("dialogue.actions must be a non-empty list")
     for action in actions:
         if not action.get("id"):
-            errors.append("each engine action needs an id")
+            errors.append("each dialogue action needs an id")
             continue
         if action.get("id") in action_ids:
             errors.append(f"duplicate action id: {action['id']}")
         action_ids.add(action.get("id"))
 
-    scoring = engine.get("scoring") or []
+    scoring = dialogue.get("scoring") or []
     for rule in scoring:
-        if rule.get("kind") == "event":
-            if rule.get("event") not in action_ids:
-                errors.append(
-                    f"scoring rule {rule.get('id')} references unknown action "
-                    f"{rule.get('event')}"
-                )
+        if rule.get("kind") == "event" and rule.get("event") not in action_ids:
+            errors.append(
+                f"scoring rule {rule.get('id')} references unknown action {rule.get('event')}"
+            )
         if rule.get("kind") == "criteria" and not rule.get("criteria"):
             errors.append(f"criteria scoring rule {rule.get('id')} needs criteria")
 
@@ -91,8 +85,6 @@ def validate_blueprint(blueprint):
             errors.append(f"markdown.{required} is required")
     if not isinstance(markdown.get("agents"), dict) or not markdown.get("agents"):
         errors.append("markdown.agents must be a non-empty mapping")
-    if not isinstance(markdown.get("skills"), dict):
-        errors.append("markdown.skills must be a mapping")
 
     playground = blueprint.get("playground") or {}
     for key in ("editable", "locked"):

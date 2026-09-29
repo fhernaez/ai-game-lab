@@ -15,13 +15,17 @@
         <td>
           <a class="btn btn-secondary btn-sm" href="{{ url_for('competitions.view', competition_id=c.id) }}">View</a>
           <a class="btn btn-secondary btn-sm" href="{{ url_for('replay.view', competition_id=c.id) }}">Replay</a>
+          <form method="post" action="{{ url_for('competitions.delete', competition_id=c.id) }}" style="display:inline;"
+                onsubmit="return confirm('Delete this competition?');">
+            <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+          </form>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
-  <p class="muted">No competitions yet. Run a simulation from the Playground.</p>
+  <p class="muted">No competitions yet. Create one from Matchmaking.</p>
   {% endif %}
 </div>
 {% endblock %}

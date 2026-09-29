@@ -98,6 +98,11 @@ th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
 .badge-created { background: var(--panel-2); color: var(--muted); }
 .badge-queued { background: #3b2a05; color: #fbbf24; }
 .badge-failed { background: #3b1212; color: var(--bad); }
+.badge-invited { background: #1e293b; color: #fbbf24; }
+.badge-accepted { background: #0c4a6e; color: #7dd3fc; }
+.badge-ready { background: #052e1f; color: var(--good); }
+.badge-cancelled { background: #3b1212; color: var(--bad); }
+.badge-declined { background: #3b1212; color: var(--bad); }
 
 .muted { color: var(--muted); }
 .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }

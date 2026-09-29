@@ -11,32 +11,35 @@
       <tr><th>Default provider</th><td>{{ info.default_provider }}</td></tr>
       <tr><th>Default model</th><td>{{ info.default_model }}</td></tr>
       <tr><th>Redis</th><td>{{ info.redis_url }}</td></tr>
-      <tr><th>Game templates</th><td>{{ info.templates_dir }}</td></tr>
     </tbody>
   </table>
-  <p class="muted">Secrets are never displayed. Providers are configured with the
-  <code>LLM_PROVIDERS</code> environment variable.</p>
-</div>
-
-<div class="panel">
-  <h2>LLM providers</h2>
-  {% for pid, models in providers.items() %}
-  <div class="row" style="margin-bottom: 0.5rem;">
-    <span class="badge">{{ pid }}</span>
-    <span class="muted">{{ models | join(', ') }}</span>
-  </div>
-  {% else %}
-  <p class="muted">No providers configured (only <code>mock</code> is available).</p>
-  {% endfor %}
+  <p class="muted">Secrets are never displayed. Providers (URL + API key) are defined in the
+  <code>LLM_PROVIDERS</code> environment variable; models are managed below.</p>
 </div>
 
 {% if is_admin %}
-<div class="panel">
-  <h2>Role defaults (admin)</h2>
-  <p class="muted">Set the default provider and model used by each AI role when an
-  agent has no explicit model. Agents can still be overridden per agent in the
-  Playground.</p>
-  <form method="post">
+<form method="post">
+  <div class="panel">
+    <h2>Models per provider (admin)</h2>
+    <p class="muted">List the model names offered by each provider, comma-separated.
+    <code>mock</code> is the deterministic offline provider used for testing.</p>
+    <table>
+      <thead><tr><th>Provider</th><th>Models</th></tr></thead>
+      <tbody>
+        {% for pid in providers %}
+        <tr>
+          <td><span class="badge">{{ pid }}</span></td>
+          <td><input type="text" name="models_{{ pid }}" value="{{ provider_models.get(pid, []) | join(', ') }}"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Role defaults (admin)</h2>
+    <p class="muted">Default provider + model for each crew role when a member has no
+    explicit model. Members can still be overridden per member in the competition.</p>
     <table>
       <thead><tr><th>Role</th><th>Default model</th></tr></thead>
       <tbody>
@@ -46,9 +49,9 @@
           <td>
             <select name="role_default_{{ role }}">
               <option value="">(inherit global default)</option>
-              {% for pid, models in providers.items() %}
+              {% for pid in providers %}
               <optgroup label="{{ pid }}">
-                {% for m in models %}
+                {% for m in provider_models.get(pid, []) %}
                 {% set ref = pid ~ ':' ~ m %}
                 <option value="{{ ref }}" {% if role_defaults.get(role) == ref %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
@@ -66,20 +69,20 @@
     <label>Global default model</label>
     <select name="default_model">
       <option value="">(use environment default)</option>
-      {% for pid, models in providers.items() %}
+      {% for pid in providers %}
       <optgroup label="{{ pid }}">
-        {% for m in models %}
+        {% for m in provider_models.get(pid, []) %}
         {% set ref = pid ~ ':' ~ m %}
         <option value="{{ ref }}" {% if default_model == ref %}selected{% endif %}>{{ m }}</option>
         {% endfor %}
       </optgroup>
       {% endfor %}
     </select>
+  </div>
 
-    <div style="margin-top: 1rem;">
-      <button class="btn" type="submit">Save role defaults</button>
-    </div>
-  </form>
-</div>
+  <div class="row" style="margin-bottom: 2rem;">
+    <button class="btn" type="submit">Save settings</button>
+  </div>
+</form>
 {% endif %}
 {% endblock %}

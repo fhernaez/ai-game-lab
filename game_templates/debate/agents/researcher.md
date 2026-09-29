@@ -1,8 +1,12 @@
-# Agent Role: Researcher
+# Crew Role: Researcher
+
+## Speak order
+
+2 (speaks second each round)
 
 ## Objective
 
-Provide useful evidence and analysis to the team.
+Provide useful evidence and analysis to the crew.
 
 ## Skills
 

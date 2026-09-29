@@ -1,8 +1,12 @@
-# Agent Role: Defender
+# Crew Role: Defender
+
+## Speak order
+
+3
 
 ## Objective
 
-Prevent opposing scoring opportunities and support team actions.
+Prevent opposing scoring opportunities and support crew actions.
 
 ## Possible Actions
 

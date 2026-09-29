@@ -1,9 +1,10 @@
-# AI Game Lab — V1 Application
+# AI Game Lab — V2 Application
 
-Educational, browser-based Flask platform for secondary-school students to learn AI
-concepts by designing and playing games powered by teams of AI agents.
+Educational, browser-based, multi-user Flask platform for secondary-school students to
+learn how large language models work — by pitting **crews of LLM models** against each
+other in games where **the game is the dialogue itself**.
 
-See `../specs/` for the full specification.
+See `specs/` for the full specification.
 
 ## Quick start
 
@@ -40,34 +41,35 @@ Full setup and usage instructions:
 
 - `docs/STARTUP_GUIDE.md` — installation, external database, Ollama, environment
   configuration, Docker deployment, first game definition, and user management.
-- `docs/USER_GUIDE.md` — how teachers and students use the Game Designer,
-  Playground, Technical view, competitions, and replay.
+- `docs/USER_GUIDE.md` — how teachers and students design games, configure crews,
+  run multi-player matches, and read the interaction log.
 - `docs/DEVELOPER_GUIDE.md` — architecture, and how to customize, upgrade, and add
   new modules (game templates, scoring rules, LLM providers, models, pages, events).
 
 ## Features
 
-- **Game Designer**: create games from templates, configure through a friendly GUI,
-  and version every change.
-- **Technical view**: always-available toggle that renders the generated
-  `manifest.yaml`, `playground.yaml`, and Markdown instruction files, and lets
-  advanced students edit them (YAML/JSON are validated and reconciled; Markdown is
-  stored verbatim).
-- **Playground**: configure teams and agents, distribute tokens and memory, and run
-  simulations.
-- **Graphical execution view**: the default run view animates agent interaction —
-  messages, declared actions, referee decisions, and score changes — as a node/edge
-  diagram driven by the event stream.
-- **Replay**: full event timeline, structured actions, and resource usage.
-- **Multi-provider / multi-model LLM**: configure any number of OpenAI-compatible
-  providers (including Ollama), each with its own models; the administrator sets a
-  default provider + model per AI role.
-- **Async runs**: competitions are executed by a background worker (Redis + rq), so
-  the graphical view is live while a run progresses.
+- **Crew dialogue engine**: each match is a bounded `speak → act → referee` dialogue
+  between two crews of LLM models and a referee model. The result emerges from the
+  dialogue.
+- **Full model-parameter control**: configure model, temperature, max tokens, top-p,
+  frequency/presence penalties, stop sequences, system prompt, and response format for
+  every crew member.
+- **LLM referee**: the referee is a real model returning a structured verdict; a
+  deterministic guard validates and clamps its score to the rules.
+- **Multi-user matchmaking**: log in, invite an online player, accept, each configures
+  their own crew, both ready up, and the game auto-starts (1v1).
+- **Interaction log**: the pedagogical trace — prompt, parameters, raw + parsed
+  response, tokens, and timing — recorded for every dialogue message.
+- **Graphical view + replay**: a node/edge diagram animates the dialogue; the event
+  timeline shows the raw record.
+- **Game Designer + Technical view**: create/version games, and edit the generated
+  Markdown/YAML/JSON with round-trip validation.
+- **Multi-provider / multi-model LLM**: providers are env-defined (`LLM_PROVIDERS`);
+  model lists and per-role defaults are managed in Settings.
 
 ## Configuration
 
-Environment variables (see `config.py` and the `.env.example` template):
+Environment variables (see `config.py` and `.env.example`):
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -78,7 +80,7 @@ Environment variables (see `config.py` and the `.env.example` template):
 | `DEFAULT_PROVIDER` / `DEFAULT_MODEL` | `mock` / `mock-model` | Global fallback provider/model |
 | `SEED_ON_START` | `false` | Docker entrypoint seeds on first boot |
 
-The `mock` provider runs the full runtime deterministically without an API key.
+The `mock` provider runs the full dialogue deterministically without an API key.
 
 ## CLI commands
 
@@ -101,8 +103,9 @@ pytest
 ```
 app/
 ├── web/            # HTTP routes, templates, static assets
-├── application/    # services: blueprint, compiler/importer, competition, settings, seed
-├── domain/         # game engine, referee, prompts, events (no Flask)
+├── application/    # services: blueprint, compiler/importer, matchmaking, presence,
+│                   #   crew, competition, settings, seed
+├── domain/         # crew, dialogue runner, referee+guard, prompts, events (no Flask)
 ├── infrastructure/ # LLM provider registry, queue (Redis/rq)
 └── models.py       # SQLAlchemy data model
 game_templates/     # seed templates (debate, team_sports)

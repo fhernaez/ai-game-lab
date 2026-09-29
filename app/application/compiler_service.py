@@ -8,7 +8,7 @@ import yaml
 YAML_DUMP_KWARGS = {"sort_keys": True, "default_flow_style": False, "allow_unicode": True}
 
 # Manifest carries the machine-readable game definition (no playground).
-MANIFEST_KEYS = ["game", "competition", "teams", "referee", "resources", "engine"]
+MANIFEST_KEYS = ["game", "competition", "crew", "referee", "resources", "dialogue"]
 
 
 def _yaml(data):

@@ -23,8 +23,19 @@ class OpenAICompatibleProvider(LLMProvider):
         payload = {
             "model": kwargs.get("model", self.model),
             "messages": messages,
-            "temperature": kwargs.get("temperature", 0.2),
         }
+        for key in (
+            "temperature",
+            "max_tokens",
+            "top_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "stop",
+            "response_format",
+        ):
+            if key in kwargs and kwargs[key] is not None:
+                payload[key] = kwargs[key]
+
         with httpx.Client(timeout=60) as client:
             resp = client.post(url, json=payload, headers=headers)
             resp.raise_for_status()

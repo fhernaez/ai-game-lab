@@ -1,8 +1,8 @@
 # Rules
 
-1. Teams alternate speaking turns.
-2. The trainee coordinates team strategy.
-3. Researchers may provide evidence and analysis.
-4. The speaker presents the team's argument.
-5. A team may only submit actions allowed by the current round.
-6. The referee evaluates submitted arguments according to the scoring criteria.
+1. Each round, every crew member speaks once, in order: trainee → researcher → speaker.
+2. Each message is fed into the next member's prompt.
+3. After the discussion, the trainee (the speaker) proposes the crew's argument.
+4. The referee model returns a structured verdict (accepted, score, explanation).
+5. The verdict's score is clamped to the scoring rules.
+6. The game runs for the configured number of rounds.

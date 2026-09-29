@@ -22,6 +22,7 @@ class User(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="student")
+    last_seen_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -81,64 +82,52 @@ class GameVersion(db.Model):
     __table_args__ = (db.UniqueConstraint("game_id", "version", name="uq_game_version"),)
 
 
-class Playground(db.Model):
-    __tablename__ = "playgrounds"
-
-    id = db.Column(db.Integer, primary_key=True)
-    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    game_version_id = db.Column(db.Integer, db.ForeignKey("game_versions.id"), nullable=False)
-    name = db.Column(db.String(200), nullable=False)
-    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-
-    game_version = db.relationship("GameVersion")
-    teams = db.relationship("Team", backref="playground", lazy=True)
-
-
-class Team(db.Model):
-    __tablename__ = "teams"
-
-    id = db.Column(db.Integer, primary_key=True)
-    playground_id = db.Column(db.Integer, db.ForeignKey("playgrounds.id"), nullable=False)
-    name = db.Column(db.String(200), nullable=False)
-    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
-
-    agents = db.relationship("AgentConfiguration", backref="team", lazy=True)
-
-
-class AgentConfiguration(db.Model):
-    __tablename__ = "agent_configurations"
-
-    id = db.Column(db.Integer, primary_key=True)
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
-    role = db.Column(db.String(50), nullable=False)
-    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
-
-
 class Competition(db.Model):
     __tablename__ = "competitions"
 
     id = db.Column(db.Integer, primary_key=True)
     game_version_id = db.Column(db.Integer, db.ForeignKey("game_versions.id"), nullable=False)
+    host_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    guest_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    status = db.Column(db.String(20), default="created")
+    round_budget = db.Column(db.Integer, default=6)
+    wall_clock_timeout = db.Column(db.Integer, default=600)
+    host_ready = db.Column(db.Boolean, default=False)
+    guest_ready = db.Column(db.Boolean, default=False)
+    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
+    final_state_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     started_at = db.Column(db.DateTime(timezone=True), nullable=True)
     finished_at = db.Column(db.DateTime(timezone=True), nullable=True)
-    status = db.Column(db.String(20), default="created")
-    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
-    final_state_json = db.Column(db.JSON, nullable=True)
 
     game_version = db.relationship("GameVersion")
-    events = db.relationship("Event", backref="competition", lazy=True)
+    host = db.relationship("User", foreign_keys=[host_id])
+    guest = db.relationship("User", foreign_keys=[guest_id])
+    crews = db.relationship("Crew", backref="competition", lazy=True)
 
 
-class CompetitionTeam(db.Model):
-    __tablename__ = "competition_teams"
+class Crew(db.Model):
+    __tablename__ = "crews"
 
     id = db.Column(db.Integer, primary_key=True)
     competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
-    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
-    player_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
+
+    player = db.relationship("User", foreign_keys=[player_id])
+    members = db.relationship("CrewMember", backref="crew", lazy=True)
+
+
+class CrewMember(db.Model):
+    __tablename__ = "crew_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    crew_id = db.Column(db.Integer, db.ForeignKey("crews.id"), nullable=False)
+    role = db.Column(db.String(50), nullable=False)
+    speak_order = db.Column(db.Integer, default=0)
+    is_speaker = db.Column(db.Boolean, default=False)
+    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
 
 
 class Event(db.Model):
@@ -148,7 +137,7 @@ class Event(db.Model):
     competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
     sequence_number = db.Column(db.Integer, nullable=False)
     event_type = db.Column(db.String(50), nullable=False)
-    actor_id = db.Column(db.String(80), nullable=True)
+    actor_id = db.Column(db.String(120), nullable=True)
     payload_json = db.Column(db.JSON, nullable=False, default=dict)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
 
@@ -162,9 +151,9 @@ class Action(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
-    turn_number = db.Column(db.Integer, nullable=False)
-    team_id = db.Column(db.Integer, nullable=False)
-    agent_id = db.Column(db.String(80), nullable=True)
+    round_number = db.Column(db.Integer, nullable=False)
+    crew_id = db.Column(db.Integer, nullable=True)
+    member_id = db.Column(db.Integer, nullable=True)
     action_type = db.Column(db.String(50), nullable=False)
     request_json = db.Column(db.JSON, nullable=False, default=dict)
     result_json = db.Column(db.JSON, nullable=False, default=dict)
@@ -176,7 +165,7 @@ class ResourceUsage(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
-    agent_id = db.Column(db.String(80), nullable=True)
+    member_id = db.Column(db.String(120), nullable=True)
     tokens_input = db.Column(db.Integer, default=0)
     tokens_output = db.Column(db.Integer, default=0)
     model = db.Column(db.String(120), default="")

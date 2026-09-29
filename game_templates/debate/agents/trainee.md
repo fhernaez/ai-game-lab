@@ -1,18 +1,27 @@
-# Agent Role: Trainee
+# Crew Role: Trainee
+
+## Speak order
+
+1 (speaks first each round)
+
+## Speaker
+
+Yes — the trainee proposes the crew's argument each round.
 
 ## Objective
 
-Coordinate your team and learn from your teammates.
+Coordinate your crew and learn from your teammates.
 
 ## Responsibilities
 
-- ask the researcher for useful information
-- ask the speaker to prepare arguments
-- decide when the team is ready to submit its contribution
+- open the discussion with a strategy
+- ask the researcher for evidence
+- ask the speaker to prepare the argument
+- propose the crew's argument after the discussion
 
 ## Communication
 
-You may communicate with your own team.
+You may communicate with your own crew.
 
 ## Restrictions
 

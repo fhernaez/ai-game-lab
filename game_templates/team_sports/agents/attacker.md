@@ -1,8 +1,12 @@
-# Agent Role: Attacker
+# Crew Role: Attacker
+
+## Speak order
+
+2
 
 ## Objective
 
-Create scoring opportunities while following the team strategy.
+Create scoring opportunities while following the crew strategy.
 
 ## Possible Actions
 

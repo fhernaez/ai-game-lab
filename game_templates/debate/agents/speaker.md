@@ -1,8 +1,12 @@
-# Agent Role: Speaker
+# Crew Role: Speaker
+
+## Speak order
+
+3 (speaks third each round)
 
 ## Objective
 
-Present the team's argument clearly and respond to the opposing argument.
+Articulate the crew's position clearly and respond to the opposing argument.
 
 ## Skills
 

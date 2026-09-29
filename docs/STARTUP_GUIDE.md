@@ -144,9 +144,12 @@ DEFAULT_MODEL=llama3.2
 To run fully offline with the deterministic built-in provider, use
 `DEFAULT_PROVIDER=mock` / `DEFAULT_MODEL=mock-model` (the default).
 
-> The administrator can also set a **default provider + model per AI role** from the
-> web UI (**Settings → Role defaults**); those are stored in the database and take
-> precedence over the global default.
+> The **model lists per provider** and the **default provider + model per AI role** are
+> managed from the web UI (**Settings**), stored in the database. On first use they are
+> seeded from the `models` lists in `LLM_PROVIDERS`.
+>
+> The `mock` provider is always available offline: it needs no URL or API key and
+> produces deterministic dialogue, so it is used for demos and testing.
 
 ### 3.4 Other settings
 
@@ -233,9 +236,9 @@ Confirm the following before sharing the application with students:
 3. Click **New Ai Debate Challenge** (or **New Ai Team Sports Challenge**) to create
    a game from a template.
 4. Click **Design** on the new game.
-5. Adjust the identity, competition rules, team roles, resources, referee, playground
-   permissions, and the plain-language instructions (game, rules, scoring, referee,
-   agent, and skill texts).
+5. Adjust the identity, execution budget (rounds), crew roles and speak order, resources,
+   referee, playground permissions, and the plain-language instructions (game, rules,
+   scoring, referee, crew-member, and skill texts).
 6. Click **Save version**.
 7. Optionally open **Technical view** to inspect or fine-tune the generated
    `manifest.yaml`, `playground.yaml`, and Markdown files.

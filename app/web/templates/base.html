@@ -9,11 +9,11 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="{{ url_for('games.index') }}">AI Game Lab</a>
+    <a class="brand" href="{{ url_for('matchmaking.index') }}">AI Game Lab</a>
     {% if current_user.is_authenticated %}
     <nav>
       <a href="{{ url_for('games.index') }}">Games</a>
-      <a href="{{ url_for('playground.index') }}">Playground</a>
+      <a href="{{ url_for('matchmaking.index') }}">Matchmaking</a>
       <a href="{{ url_for('competitions.index') }}">Competitions</a>
       <a href="{{ url_for('settings.index') }}">Settings</a>
       <span class="spacer"></span>

@@ -10,7 +10,7 @@ import yaml
 
 from .validation import validate_blueprint
 
-YAML_KEYS = ["game", "competition", "teams", "referee", "resources", "engine", "playground"]
+YAML_KEYS = ["game", "competition", "crew", "referee", "resources", "dialogue", "playground"]
 
 
 def _parse_yaml(text):
@@ -49,10 +49,6 @@ def parse_files(files):
     return blueprint
 
 
-def parse_json(text):
-    return json.loads(text)
-
-
 def import_files(files):
     """Parse and validate files, returning (blueprint, errors)."""
     try:
@@ -61,6 +57,10 @@ def import_files(files):
         return None, [f"YAML parse error: {exc}"]
     errors = validate_blueprint(blueprint)
     return blueprint, errors
+
+
+def parse_json(text):
+    return json.loads(text)
 
 
 def dump_json(blueprint):

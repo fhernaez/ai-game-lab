@@ -2,7 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required
 
 from ..application import settings_service
-from ..infrastructure.llm import models_for, provider_ids
+from ..infrastructure.llm import provider_ids
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
 
@@ -11,8 +11,15 @@ bp = Blueprint("settings", __name__, url_prefix="/settings")
 @login_required
 def index():
     is_admin = current_user.role == "admin"
+    providers = provider_ids()
 
     if request.method == "POST" and is_admin:
+        provider_models = {}
+        for pid in providers:
+            raw = request.form.get(f"models_{pid}", "")
+            provider_models[pid] = [m.strip() for m in raw.split(",") if m.strip()]
+        settings_service.set_provider_models(provider_models)
+
         roles = settings_service.available_roles()
         role_defaults = {}
         for role in roles:
@@ -21,12 +28,10 @@ def index():
                 role_defaults[role] = ref
         settings_service.set_role_defaults(role_defaults)
         settings_service.set_default_model(request.form.get("default_model", ""))
-        flash("Role defaults saved.", "success")
+        flash("Settings saved.", "success")
         return redirect(url_for("settings.index"))
 
-    providers = {
-        pid: models_for(pid) for pid in provider_ids()
-    }
+    provider_models = settings_service.get_provider_models()
     roles = settings_service.available_roles()
     role_defaults = settings_service.get_role_defaults()
     default_model = settings_service.get_default_model()
@@ -36,13 +41,13 @@ def index():
         "default_provider": current_app.config["DEFAULT_PROVIDER"],
         "default_model": current_app.config["DEFAULT_MODEL"],
         "redis_url": "configured" if current_app.config.get("REDIS_URL") else "not configured",
-        "templates_dir": current_app.config["GAME_TEMPLATES_DIR"],
     }
     return render_template(
         "settings/index.html",
         info=info,
         is_admin=is_admin,
         providers=providers,
+        provider_models=provider_models,
         roles=roles,
         role_defaults=role_defaults,
         default_model=default_model,

@@ -16,12 +16,11 @@
 <div class="panel">
   <h2>Actions</h2>
   <table>
-    <thead><tr><th>Turn</th><th>Agent</th><th>Action</th><th>Request</th></tr></thead>
+    <thead><tr><th>Round</th><th>Action</th><th>Request</th></tr></thead>
     <tbody>
       {% for a in actions %}
       <tr>
-        <td>{{ a.turn_number }}</td>
-        <td>{{ a.agent_id }}</td>
+        <td>{{ a.round_number }}</td>
         <td>{{ a.action_type }}</td>
         <td class="muted"><code>{{ a.request_json | tojson }}</code></td>
       </tr>
@@ -31,7 +30,7 @@
 </div>
 
 <div class="panel">
-  <h2>Events</h2>
+  <h2>Interaction log (events)</h2>
   <table>
     <thead><tr><th>#</th><th>Type</th><th>Actor</th><th>Payload</th></tr></thead>
     <tbody>
@@ -50,11 +49,11 @@
 <div class="panel">
   <h2>Resource usage</h2>
   <table>
-    <thead><tr><th>Agent</th><th>Model</th><th>In</th><th>Out</th></tr></thead>
+    <thead><tr><th>Member</th><th>Model</th><th>In</th><th>Out</th></tr></thead>
     <tbody>
       {% for u in usage %}
       <tr>
-        <td>{{ u.agent_id }}</td>
+        <td>{{ u.member_id }}</td>
         <td>{{ u.model }}</td>
         <td>{{ u.tokens_input }}</td>
         <td>{{ u.tokens_output }}</td>

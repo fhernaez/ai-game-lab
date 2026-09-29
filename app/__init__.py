@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import click
-from flask import Flask
+from flask import Flask, g
 
 from config import Config
 
@@ -17,7 +17,6 @@ def create_app(config_object=None):
     )
     app.config.from_object(config_object or Config)
 
-    # Ensure instance dir exists for SQLite.
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
@@ -29,6 +28,15 @@ def create_app(config_object=None):
 
     from .models import User  # noqa: F401
 
+    @app.before_request
+    def _touch_presence():
+        from flask_login import current_user
+
+        if current_user.is_authenticated:
+            from .application import presence_service
+
+            presence_service.touch(current_user)
+
     register_blueprints(app)
     register_cli(app)
 
@@ -39,7 +47,7 @@ def register_blueprints(app):
     from .web.auth import bp as auth_bp
     from .web.settings import bp as settings_bp
     from .web.games import bp as games_bp
-    from .web.playground import bp as playground_bp
+    from .web.matchmaking import bp as matchmaking_bp
     from .web.competitions import bp as competitions_bp
     from .web.replay import bp as replay_bp
     from .web.api import bp as api_bp
@@ -47,7 +55,7 @@ def register_blueprints(app):
     app.register_blueprint(auth_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(games_bp)
-    app.register_blueprint(playground_bp)
+    app.register_blueprint(matchmaking_bp)
     app.register_blueprint(competitions_bp)
     app.register_blueprint(replay_bp)
     app.register_blueprint(api_bp)
@@ -56,16 +64,13 @@ def register_blueprints(app):
     def index():
         from flask import redirect, url_for
 
-        return redirect(url_for("games.index"))
+        return redirect(url_for("matchmaking.index"))
 
 
 def register_cli(app):
     @app.cli.command("seed")
     def seed_command():
-        """Create the admin user and load the seed game templates.
-
-        Run `flask db upgrade` first to create the database schema.
-        """
+        """Create the admin user and load the seed game templates."""
         from .application.seed import seed
 
         seed()

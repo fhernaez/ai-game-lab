@@ -2,8 +2,12 @@
 
 ## Objective
 
-Two teams debate a proposition. Teams use their agents to research, coordinate and present arguments.
+Two crews debate a proposition through dialogue. Each crew is a set of LLM models that
+speak in order each round, propose an argument, and receive a verdict from a referee
+model.
 
 ## Educational purpose
 
-Students explore how prompts, skills, models, communication and resource allocation influence an AI team's behavior.
+Students explore how models, model parameters (temperature, top-p, penalties, max
+tokens), prompts, skills, and resource allocation influence a crew's behavior — and
+learn to read the interaction log to see how each decision was reached.

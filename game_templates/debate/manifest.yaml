@@ -1,47 +1,42 @@
 game:
   id: ai_debate
   name: AI Debate Challenge
-  version: 1.0.0
-  description: Two AI teams debate a proposition.
+  version: 2.0.0
+  description: Two crews debate a proposition through dialogue.
 
 competition:
-  min_players: 2
-  max_players: 2
   teams: 2
-  turn_mode: sequential
-  action_timeout_seconds: 45
-  duration:
-    type: rounds
-    value: 3
+  default_round_budget: 6
+  wall_clock_timeout_seconds: 600
 
-teams:
-  agents_per_team: 3
+crew:
   roles:
     - id: trainee
-      count: 1
+      speak_order: 1
+      speaker: true
       required: true
     - id: researcher
-      count: 1
+      speak_order: 2
+      speaker: false
       required: true
     - id: speaker
-      count: 1
+      speak_order: 3
+      speaker: false
       required: true
 
 referee:
   enabled: true
-  agent_template: referee
+  role: referee
+  response_format: json
 
 resources:
   team_token_budget: 50000
   team_memory_budget: 12000
   max_concurrent_agents: 3
 
-engine:
+dialogue:
   actions:
     - id: SUBMIT_ARGUMENT
-      label: Submit argument
-      roles:
-        - speaker
   scoring:
     - id: debate_score
       kind: criteria
@@ -53,3 +48,19 @@ engine:
         - compliance
       max: 5
   win: highest_score
+
+playground:
+  editable:
+    - crew_instructions
+    - member_instructions
+    - selected_skills
+    - model_selection
+    - model_parameters
+    - token_distribution
+    - memory_distribution
+  locked:
+    - rules
+    - scoring
+    - referee
+    - action_schema
+    - speak_order

@@ -1,9 +1,10 @@
 playground:
   editable:
-    - team_instructions
-    - agent_instructions
+    - crew_instructions
+    - member_instructions
     - selected_skills
     - model_selection
+    - model_parameters
     - token_distribution
     - memory_distribution
   locked:
@@ -11,3 +12,4 @@ playground:
     - scoring
     - referee
     - action_schema
+    - speak_order

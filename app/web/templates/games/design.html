@@ -2,7 +2,7 @@
 {% block title %}Design {{ game.name }} — AI Game Lab{% endblock %}
 {% block content %}
 <h1>Design: {{ game.name }}</h1>
-<p class="muted">Configure concepts here; the platform generates the blueprint files.</p>
+<p class="muted">Configure the dialogue: two crews and a referee model.</p>
 
 <form method="post">
   <div class="panel">
@@ -16,56 +16,29 @@
   </div>
 
   <div class="panel">
-    <h2>Competition</h2>
+    <h2>Execution budget</h2>
     <div class="grid grid-2">
       <div>
-        <label>Teams</label>
-        <input type="number" name="competition_teams" value="{{ blueprint.competition.teams }}">
+        <label>Default rounds</label>
+        <input type="number" name="default_round_budget" value="{{ blueprint.competition.default_round_budget }}">
       </div>
       <div>
-        <label>Min players</label>
-        <input type="number" name="min_players" value="{{ blueprint.competition.min_players }}">
-      </div>
-      <div>
-        <label>Max players</label>
-        <input type="number" name="max_players" value="{{ blueprint.competition.max_players }}">
-      </div>
-      <div>
-        <label>Turn mode</label>
-        <select name="turn_mode">
-          <option value="sequential" {% if blueprint.competition.turn_mode == 'sequential' %}selected{% endif %}>Sequential</option>
-        </select>
-      </div>
-      <div>
-        <label>Action timeout (s)</label>
-        <input type="number" name="action_timeout_seconds" value="{{ blueprint.competition.action_timeout_seconds }}">
-      </div>
-      <div>
-        <label>Duration type</label>
-        <select name="duration_type">
-          <option value="turns" {% if blueprint.competition.duration.type == 'turns' %}selected{% endif %}>Turns</option>
-          <option value="rounds" {% if blueprint.competition.duration.type == 'rounds' %}selected{% endif %}>Rounds</option>
-        </select>
-      </div>
-      <div>
-        <label>Duration value</label>
-        <input type="number" name="duration_value" value="{{ blueprint.competition.duration.value }}">
+        <label>Wall-clock timeout (s)</label>
+        <input type="number" name="wall_clock_timeout" value="{{ blueprint.competition.wall_clock_timeout_seconds }}">
       </div>
     </div>
   </div>
 
   <div class="panel">
-    <h2>Teams &amp; roles</h2>
-    <label>Agents per team</label>
-    <input type="number" name="agents_per_team" value="{{ blueprint.teams.agents_per_team }}">
-    <label style="margin-top: 1rem;">Roles</label>
+    <h2>Crew roles</h2>
     <table>
-      <thead><tr><th>Role</th><th>Count</th><th>Required</th></tr></thead>
+      <thead><tr><th>Role</th><th>Speak order</th><th>Speaker</th><th>Required</th></tr></thead>
       <tbody>
-        {% for role in blueprint.teams.roles %}
+        {% for role in blueprint.crew.roles %}
         <tr>
           <td>{{ role.id }}</td>
-          <td><input type="number" name="role_count_{{ loop.index0 }}" value="{{ role.count }}" style="max-width: 80px;"></td>
+          <td><input type="number" name="role_speak_order_{{ loop.index0 }}" value="{{ role.speak_order }}" style="max-width: 80px;"></td>
+          <td><input type="radio" name="speaker_role" value="{{ loop.index0 }}" {% if role.speaker %}checked{% endif %}></td>
           <td><input type="checkbox" name="role_required_{{ loop.index0 }}" {% if role.required %}checked{% endif %}></td>
         </tr>
         {% endfor %}
@@ -74,20 +47,17 @@
   </div>
 
   <div class="panel">
-    <h2>Resources</h2>
+    <h2>Resources &amp; referee</h2>
     <div class="grid grid-2">
       <div><label>Team token budget</label><input type="number" name="team_token_budget" value="{{ blueprint.resources.team_token_budget }}"></div>
       <div><label>Team memory budget</label><input type="number" name="team_memory_budget" value="{{ blueprint.resources.team_memory_budget }}"></div>
       <div><label>Max concurrent agents</label><input type="number" name="max_concurrent_agents" value="{{ blueprint.resources.max_concurrent_agents }}"></div>
-      <div>
-        <label>Referee enabled</label>
-        <input type="checkbox" name="referee_enabled" {% if blueprint.referee.enabled %}checked{% endif %}>
-      </div>
+      <div><label>Referee enabled</label><input type="checkbox" name="referee_enabled" {% if blueprint.referee.enabled %}checked{% endif %}></div>
     </div>
   </div>
 
   <div class="panel">
-    <h2>Playground permissions</h2>
+    <h2>Crew permissions</h2>
     <label>Editable (comma-separated)</label>
     <input type="text" name="playground_editable" value="{{ blueprint.playground.editable | join(', ') }}">
     <label>Locked (comma-separated)</label>
@@ -107,8 +77,8 @@
   </div>
 
   <div class="panel">
-    <h2>Agent instructions</h2>
-    {% for role in blueprint.teams.roles %}
+    <h2>Crew-member instructions</h2>
+    {% for role in blueprint.crew.roles %}
     <label>{{ role.id }}</label>
     <textarea name="markdown_agent_{{ role.id }}" rows="8">{{ blueprint.markdown.agents.get(role.id, '') }}</textarea>
     {% endfor %}

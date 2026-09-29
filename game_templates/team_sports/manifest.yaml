@@ -1,45 +1,44 @@
 game:
   id: ai_team_sports
   name: AI Team Sports Challenge
-  version: 1.0.0
-  description: Generic turn-based team sport simulation.
+  version: 2.0.0
+  description: Turn-based team sport played as dialogue.
 
 competition:
-  min_players: 2
-  max_players: 2
   teams: 2
-  turn_mode: sequential
-  action_timeout_seconds: 30
-  duration:
-    type: turns
-    value: 30
+  default_round_budget: 30
+  wall_clock_timeout_seconds: 900
 
-teams:
-  agents_per_team: 4
+crew:
   roles:
     - id: trainee
-      count: 1
+      speak_order: 1
+      speaker: true
       required: true
     - id: attacker
-      count: 1
+      speak_order: 2
+      speaker: false
       required: true
     - id: defender
-      count: 1
+      speak_order: 3
+      speaker: false
       required: true
     - id: specialist
-      count: 1
+      speak_order: 4
+      speaker: false
       required: false
 
 referee:
   enabled: true
-  agent_template: referee
+  role: referee
+  response_format: json
 
 resources:
   team_token_budget: 60000
   team_memory_budget: 16000
   max_concurrent_agents: 4
 
-engine:
+dialogue:
   actions:
     - id: MOVE
     - id: PASS
@@ -60,3 +59,19 @@ engine:
       points: 1
       probability: 0.3
   win: highest_score
+
+playground:
+  editable:
+    - crew_instructions
+    - member_instructions
+    - selected_skills
+    - model_selection
+    - model_parameters
+    - token_distribution
+    - memory_distribution
+  locked:
+    - rules
+    - scoring
+    - referee
+    - action_schema
+    - speak_order
