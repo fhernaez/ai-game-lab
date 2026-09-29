@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Users — AI Game Lab{% endblock %}
+{% block content %}
+<h1>User administration</h1>
+
+<div class="panel">
+  <h2>Create user</h2>
+  <form method="post" action="{{ url_for('users.create') }}" class="row">
+    <input type="text" name="username" placeholder="Username" required style="max-width: 180px;">
+    <input type="email" name="email" placeholder="Email" required style="max-width: 240px;">
+    <select name="role">
+      <option value="student">student</option>
+      <option value="teacher">teacher</option>
+      <option value="admin">admin</option>
+    </select>
+    <input type="password" name="password" placeholder="Password" required style="max-width: 180px;">
+    <button class="btn" type="submit">Create</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>Users</h2>
+  <table>
+    <thead><tr><th>Username</th><th>Email</th><th>Role</th><th></th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td>
+          <form method="post" action="{{ url_for('users.change_role', user_id=u.id) }}" class="row" style="gap: 0.4rem;">
+            <select name="role">
+              {% for r in roles %}
+              <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-secondary btn-sm" type="submit">Save</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('users.delete', user_id=u.id) }}"
+                onsubmit="return confirm('Delete {{ u.username }}?');">
+            <button class="btn btn-danger btn-sm" type="submit" {% if u.id == current_user.id %}disabled{% endif %}>Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

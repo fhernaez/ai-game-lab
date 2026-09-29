@@ -59,13 +59,16 @@ A **Technical view** toggle must always be available.
 
 1. **General Settings** (admin): LLM providers (env-defined, read-only), editable model
    lists per provider, role defaults, global default model, resource limits. No secrets.
-2. **Game Designer**: identity, objective, 1v1, crew roles + speak order, speaker role,
+2. **User Administration** (admin): list users, create users (username, email, role,
+   password), change role, and delete users. Duplicate usernames/emails must be handled
+   gracefully (a friendly message, not a 500).
+3. **Game Designer**: identity, objective, 1v1, crew roles + speak order, speaker role,
    rules, actions, scoring, referee, resources, playground permissions, test, version.
-3. **Matchmaking**: create competition (game + round budget), invite an online player,
+4. **Matchmaking**: create competition (game + round budget), invite an online player,
    accept/decline, configure your crew, ready-up.
-4. **Competitions**: run/start, stop, delete; graphical dialogue view (default) and the
+5. **Competitions**: run/start, stop, delete; graphical dialogue view (default) and the
    interaction log / event timeline (alternate).
-5. **Replay**: full event timeline, actions, verdicts, resource usage.
+6. **Replay**: full event timeline, actions, verdicts, resource usage.
 
 ## Dialogue runtime
 
@@ -131,6 +134,7 @@ apply the state transition.
 Implement tests for:
 
 - authentication + presence
+- user administration (create/edit role/delete users, duplicate handling)
 - game creation + versioning
 - blueprint compilation + invalid configuration
 - crew/member configuration (parameters)
@@ -149,9 +153,10 @@ Implement tests for:
 2. configuration
 3. database + migrations
 4. authentication + presence
-5. game/version domain model
-6. blueprint templates
-7. GUI game editor (crew roles + speak order)
+5. user administration (list/create/role/delete users)
+6. game/version domain model
+7. blueprint templates
+8. GUI game editor (crew roles + speak order)
 8. GUI crew/member editor (full parameters)
 9. blueprint compiler + importer (round-trip)
 10. LLM abstraction (multi-provider/multi-model)

@@ -10,6 +10,7 @@ Flask Web Application
   |
   +-- Authentication & Presence
   +-- General Settings
+  +-- User Administration
   +-- Game Designer
   +-- Matchmaking (invite / accept / ready-up)
   +-- Crew Configuration (per-player team settings)
@@ -57,6 +58,7 @@ Responsible for:
 
 - HTTP requests, authentication, and session presence
 - forms and the GUI
+- user administration (create/manage users and assign roles)
 - graphical agent-interaction visualization (live and replay)
 - matchmaking screens (invite, accept, ready-up)
 - validation of user input

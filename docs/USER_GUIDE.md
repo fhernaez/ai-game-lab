@@ -160,9 +160,21 @@ Open **Settings** to see the environment summary and, for administrators:
 - **Role defaults** — the default provider + model for each crew role.
 - **Global default model**.
 
+## 8. User administration (admin)
+
+Open **Users** (visible only to administrators) to manage accounts:
+
+- **Create user** — enter a username, email, role (`student` / `teacher` / `admin`), and
+  password.
+- **Change role** — select a new role and save.
+- **Delete** — remove a user (blocked if they still own games, crews, or matches).
+
+This is how you create the accounts needed to run a multi-player match: create two
+students, log each one in, and invite one from the other in **Matchmaking**.
+
 ---
 
-## 8. Key concepts
+## 9. Key concepts
 
 | Concept | What it means in the app |
 | --- | --- |
@@ -177,7 +189,7 @@ Open **Settings** to see the environment summary and, for administrators:
 
 ---
 
-## 9. Typical classroom flow
+## 10. Typical classroom flow
 
 1. The **teacher** creates a game from a template and designs it (section 3).
 2. The **teacher** sets up student accounts (Startup Guide).

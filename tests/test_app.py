@@ -137,3 +137,47 @@ def test_competition_delete_cascades(app, client):
         assert db.session.get(Competition, cid) is None
         assert Crew.query.filter_by(competition_id=cid).count() == 0
         assert Event.query.filter_by(competition_id=cid).count() == 0
+
+
+def test_register_duplicate_email_graceful(app, client):
+    with app.app_context():
+        _make_user("bob", "secret")
+    resp = client.post(
+        "/auth/register",
+        data={"username": "bob2", "email": "bob@example.com", "password": "secret"},
+    )
+    assert resp.status_code == 200
+    assert b"Email already in use" in resp.data
+
+
+def test_user_admin_create_and_delete(app, auth_client):
+    resp = auth_client.post(
+        "/users/create",
+        data={
+            "username": "charlie",
+            "email": "charlie@example.com",
+            "role": "student",
+            "password": "secret",
+        },
+        follow_redirects=True,
+    )
+    assert b"Created student user" in resp.data
+    with app.app_context():
+        user = User.query.filter_by(username="charlie").first()
+        assert user is not None
+        uid = user.id
+
+    resp = auth_client.post(f"/users/{uid}/delete", follow_redirects=True)
+    assert b"Deleted user charlie" in resp.data
+    with app.app_context():
+        assert db.session.get(User, uid) is None
+
+
+def test_user_admin_requires_admin(app, client):
+    client.post("/auth/login", data={"username": "admin", "password": "admin123"})
+    with app.app_context():
+        _make_user("student1", "secret")
+    client.get("/auth/logout")
+    client.post("/auth/login", data={"username": "student1", "password": "secret"})
+    resp = client.get("/users", follow_redirects=True)
+    assert b"Administrator access required" in resp.data

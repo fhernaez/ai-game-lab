@@ -63,7 +63,7 @@ AI-Edu-game-lab-app-v1/
 │   ├── extensions.py         # db, login_manager, migrate
 │   ├── models.py             # SQLAlchemy models (Crew, CrewMember, Competition, ...)
 │   ├── web/                  # HTTP layer
-│   │   ├── auth.py settings.py games.py matchmaking.py
+│   │   ├── auth.py settings.py games.py users.py matchmaking.py
 │   │   ├── competitions.py replay.py api.py
 │   │   ├── templates/        # Jinja2 (base.html + per-area)
 │   │   └── static/           # css/app.css, js/visualization.js

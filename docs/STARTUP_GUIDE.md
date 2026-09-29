@@ -245,7 +245,10 @@ Confirm the following before sharing the application with students:
 
 ### 5.3 Set up users
 
-Create accounts with the command line:
+Admins can manage users from the web UI: log in as `admin`, open **Users**, and create
+accounts (username, email, role, password), change roles, or delete users.
+
+You can also create accounts from the command line:
 
 ```bash
 flask --app run.py create-user mrsmith mrsmith@school.edu teacher
@@ -256,7 +259,8 @@ You will be prompted to enter (and confirm) a password for each user. Roles are
 `admin`, `teacher`, or `student`.
 
 Students can also self-register from the login page via **Register** (these accounts
-are created with the `student` role).
+are created with the `student` role). To run a multi-player match, create at least two
+student accounts, then invite one from the other in **Matchmaking**.
 
 ---
 

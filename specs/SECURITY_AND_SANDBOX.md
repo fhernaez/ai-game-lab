@@ -83,6 +83,13 @@ configuration (except what the game explicitly reveals).
 - A player may read and write only their own crew.
 - A player may not see the opponent's hidden parameters before the game reveals them.
 
+## User administration (authorization)
+
+- Only `admin` users may create, edit, or delete accounts and change roles.
+- A user cannot delete their own account.
+- Deleting a user who still owns games, crews, or matches is blocked with a clear
+  message (or handled explicitly), never left to a raw database error.
+
 ## Secrets
 
 LLM API keys and database credentials must never be written into game blueprints or

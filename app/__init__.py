@@ -47,6 +47,7 @@ def register_blueprints(app):
     from .web.auth import bp as auth_bp
     from .web.settings import bp as settings_bp
     from .web.games import bp as games_bp
+    from .web.users import bp as users_bp
     from .web.matchmaking import bp as matchmaking_bp
     from .web.competitions import bp as competitions_bp
     from .web.replay import bp as replay_bp
@@ -55,6 +56,7 @@ def register_blueprints(app):
     app.register_blueprint(auth_bp)
     app.register_blueprint(settings_bp)
     app.register_blueprint(games_bp)
+    app.register_blueprint(users_bp)
     app.register_blueprint(matchmaking_bp)
     app.register_blueprint(competitions_bp)
     app.register_blueprint(replay_bp)
