@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Match history — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Match history</h1>
+<div class="panel">
+  {% if matches %}
+  <table>
+    <thead><tr><th>ID</th><th>Difficulty</th><th>Host</th><th>Guest</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for m in matches %}
+      <tr>
+        <td>{{ m.id }}</td>
+        <td>{{ m.difficulty }}</td>
+        <td>{{ m.host.username }}</td>
+        <td>{{ m.guest.username if m.guest else '—' }}</td>
+        <td><span class="badge badge-{{ m.status }}">{{ m.status }}</span></td>
+        <td>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('matches.view', match_id=m.id) }}">View</a>
+          <a class="btn btn-secondary btn-sm" href="{{ url_for('history.detail', match_id=m.id) }}">Log</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No matches yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

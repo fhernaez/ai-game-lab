@@ -1,199 +1,174 @@
-# AI Game Lab — User Guide
+# AI Game Lab — User Guide (Beach Volleyball)
 
-This guide explains how teachers and students use AI Game Lab day to day: designing
-games, configuring crews, running multi-player matches, and reading the interaction log.
+This guide explains how to use AI Game Lab V3: creating matches, configuring your
+2-player team, running the volleyball simulation, and reading the interaction log.
 
 ---
 
 ## 1. Overview
 
 AI Game Lab is an educational, multi-user platform for learning how large language
-models work. A match is a **dialogue between two crews of LLM models and a referee
-model**: each round, crew members speak in order, one member proposes an action, and the
-referee returns a verdict with a score.
+models work, through a single game: **beach volleyball**. A match is played by two teams
+of two AI players each. Each player is the combination of:
 
-The main areas are:
+- a **mind** — an LLM (model + model parameters) that decides the tactics;
+- a **body** — 7 athlete attributes (sliders 1–10) that determine whether the execution
+  works.
 
-1. **Games** — the Game Designer, where a game's roles, actions, and scoring are defined
-   and versioned.
-2. **Matchmaking** — create a competition, invite an online player, accept, and ready up.
-3. **Competitions** — the live match: configure your crew, watch the dialogue, and read
-   the interaction log.
+You configure both, run the match, and read the interaction log to see how each decision
+and each attribute shaped the result.
+
+Main areas:
+
+1. **Matchmaking** — create a match, invite an online player, accept, ready up.
+2. **Team configuration** — set your two players' attributes, archetype, model, and
+   model parameters.
+3. **Match** — the live graphical simulation and the interaction log.
+4. **History** — browse every match.
 
 ### Roles
 
 | Role | Typical use |
 | --- | --- |
-| `admin` | Manages settings and the environment; can do everything. |
-| `teacher` | Designs games and manages the class. |
-| `student` | Configures crews and plays matches. |
-
-> Note: in the current build every authenticated user can reach all screens; roles are
-> stored on the account and reserved for finer access control.
+| `admin` | Manages users and settings. |
+| `teacher` | Browses match history; manages the class. |
+| `student` | Configures teams and plays matches. |
 
 ---
 
 ## 2. Logging in
 
-Open the application and enter your username and password. New students can register
-from the login page; teachers and administrators are usually created by an administrator
-(see the Startup Guide).
+Enter your username and password. New students can register from the login page; teachers
+and administrators are usually created by an administrator.
 
 ---
 
-## 3. Games (Game Designer)
-
-Open **Games** from the top navigation.
-
-### 3.1 Create a game from a template
-
-Click **New Ai Debate Challenge** or **New Ai Team Sports Challenge**.
-
-### 3.2 Design a game
-
-Click **Design** on a game to edit it:
-
-- **Game identity** — name, version, description.
-- **Execution budget** — default number of rounds and a wall-clock timeout.
-- **Crew roles** — each role's speak order, which role is the **speaker** (proposes the
-  action), and whether it is required.
-- **Resources** — token/memory budgets, max concurrent agents.
-- **Referee** — enable/disable.
-- **Crew permissions** — which settings players may edit versus which are locked.
-- **Instructions** — plain-language text for the game, rules, scoring, referee, each
-  crew role, and each skill.
-
-Click **Save version** to store your changes as a new immutable version.
-
-### 3.3 View versions
-
-The game's detail page lists every version. Competitions reference the version they were
-run against, so older results never change when you edit a game.
-
-### 3.4 Technical view
-
-Click **Technical view** to see the generated blueprint — `manifest.yaml`,
-`playground.yaml`, and the Markdown instruction files — as editable text. Editing
-YAML/JSON validates and reconciles back into the structured configuration; Markdown is
-stored verbatim.
-
----
-
-## 4. Matchmaking
+## 3. Matchmaking
 
 Open **Matchmaking**.
 
-### 4.1 Create a competition
+### 3.1 Create a match
 
-Choose a game version and a number of rounds, then click **Create**.
+Choose a **difficulty** (Easy / Medium / Hard — this sets the point budget for building
+your team) and click **Create**.
 
-### 4.2 Invite a player
+### 3.2 Invite a player
 
-On the competition page, choose an **online player** and click **Invite**. The invited
-player sees the invitation and can **Accept** or **Decline**.
+On the match page, pick an **online player** and click **Invite**. They can **Accept** or
+**Decline**.
 
-### 4.3 Ready up
+### 3.3 Ready up
 
-After accepting, each player configures their own crew (section 5) and clicks
-**I'm ready**. When both players are ready, the game starts automatically.
-
----
-
-## 5. Configuring your crew
-
-On the competition page, click **Configure my crew**. For each crew member you can set:
-
-- **Model** (`provider:model`, or inherit the role default)
-- **System prompt / instructions**
-- **Temperature**, **max tokens**, **top-p**
-- **Frequency penalty**, **presence penalty**
-- **Stop sequences**, **response format**
-
-Plus the whole crew's instructions and strategy. Click **Save crew**.
-
-This is the core of the learning: change a parameter, run the match, and read the
-dialogue to see how it changed the outcome.
+After accepting, each player configures their team (section 4) and clicks **I'm ready**.
+When both are ready, the match starts automatically.
 
 ---
 
-## 6. Competitions
+## 4. Configuring your team
 
-Open **Competitions** to list your matches.
+Click **Configure my team** on the match page.
 
-### 6.1 The graphical view
+### 4.1 Athlete attributes (1–10 sliders)
 
-The default view is a node/edge diagram: crew members and the referee are nodes;
-messages, proposed actions, and referee verdicts are animated edges; the scoreboard
-updates live while the match runs (queued/running), then shows the final score.
+Each player has 7 skills; drag the sliders. Every skill shows a plain-language
+description of how it changes behavior:
 
-### 6.2 The interaction log
+- **Vertical Leap** — block spikes and hit downhill over the block.
+- **Sand Speed** — cover the court and chase down shots.
+- **Dig & Serve Receive** — control hard serves/spikes on the first touch.
+- **Set Precision** — accurate passes to your partner.
+- **Sniper Vision** — aim soft shots at empty sand.
+- **Power Control** — keep accuracy when hitting at full power.
+- **Spike Power** — attack velocity; less reaction time for the opponent.
 
-The sidebar shows every event. For each dialogue message you can inspect:
+### 4.2 Point budget
 
-- the role and round,
-- the prompt sent,
-- the parameters used,
-- the raw response and the parsed result,
-- tokens and duration.
+Each slider point above 1 costs 1 point, from the difficulty budget (Easy 45, Medium 25,
+Hard 12). All attributes default to 1 (free). If you exceed the budget, the app rejects
+the save and tells you the cost.
 
-This is how you trace *how* the result was reached.
+### 4.3 Preset archetypes
 
-### 6.3 Event timeline (Replay)
+For a quick start, pick an archetype (applied to both players):
 
-Click **Event timeline** for the raw structured record: final state, every action, the
-full ordered event log, and resource usage.
+- **The Tower** — big blocks and heavy spikes, slow on the ground.
+- **The Defensive Ninja** — covers ground and sets perfectly.
+- **The Sharp-Shooter** — finesse and placements over power.
 
-### 6.4 Controls
+### 4.4 LLM model & parameters
 
-- **Stop** — cancel a queued/running match.
+Each player selects an **LLM model** (from the providers configured in the environment)
+and model parameters, each with a short explanation:
+
+- **Temperature** — how varied/creative the decisions are.
+- **Max tokens** — max length of the response.
+- **Top-p** — narrows/expands the sampled vocabulary.
+- **Frequency / presence penalty** — reduce repetition.
+- **System prompt** — the strategy/persona given to the agent.
+
+---
+
+## 5. The match
+
+Open **Matchmaking → your match**, or **History → View**.
+
+### 5.1 The graphical simulation
+
+A simple but accurate court animation shows the four players and the ball moving during
+each rally, with a live scoreboard (sets and current points). It is a separate, replaceable
+module.
+
+### 5.2 The interaction log
+
+The sidebar records every event. For each **decision** you can inspect:
+
+- which player acted and the situation;
+- the prompt sent, the model and model parameters used;
+- the raw response and the parsed decision (action, power, target);
+- the athlete attributes used;
+- the physics outcome (touch, fault, point).
+
+This is how you trace *why* a point was won or lost.
+
+### 5.3 Controls
+
+- **Stop** — cancel a running/queued match.
 - **Cancel** — abandon a match that hasn't started.
-- **Delete** — remove a match and its history (cascade).
+- **Delete** — remove a match and its history.
 
 ---
 
-## 7. Settings
+## 6. History
 
-Open **Settings** to see the environment summary and, for administrators:
-
-- **Models per provider** — edit the model list for each provider (providers themselves
-  are env-defined in `LLM_PROVIDERS`).
-- **Role defaults** — the default provider + model for each crew role.
-- **Global default model**.
-
-## 8. User administration (admin)
-
-Open **Users** (visible only to administrators) to manage accounts:
-
-- **Create user** — enter a username, email, role (`student` / `teacher` / `admin`), and
-  password.
-- **Change role** — select a new role and save.
-- **Delete** — remove a user (blocked if they still own games, crews, or matches).
-
-This is how you create the accounts needed to run a multi-player match: create two
-students, log each one in, and invite one from the other in **Matchmaking**.
+Open **History** to browse every match (finished and otherwise). Open a match's **Log** to
+see its full interaction log and final state. This is where teachers review class results.
 
 ---
 
-## 9. Key concepts
+## 7. Settings & users (admin)
 
-| Concept | What it means in the app |
+- **Settings** — edit the model list per provider and the global default model.
+- **Users** — create accounts, change roles, delete users.
+
+---
+
+## 8. Key concepts
+
+| Concept | Meaning |
 | --- | --- |
-| **Crew** | A team of LLM agents, owned by one player. |
-| **Crew member** | An agent with a role, speak order, model, and parameters. |
-| **Dialogue** | The `speak → act → referee` rounds that make up the game. |
-| **Speaker** | The role that proposes the crew's action each round. |
-| **Referee** | An LLM model returning a structured verdict, fenced by a guard. |
-| **Model** | An LLM, referenced as `provider:model` (e.g. `ollama:llama3.2`). |
-| **Interaction log** | The full trace (prompt, parameters, response) of every message. |
-| **Event** | An immutable record of a game transition, used for the view and replay. |
+| **Team** | Two players, owned by one user. |
+| **Player (agent)** | An LLM (mind) + 7 athlete attributes (body). |
+| **Attribute** | A physical/technical skill (0.1–1.0) that drives the physics. |
+| **Model** | An LLM, referenced `provider:model`. |
+| **Decision** | A structured action `{action, power, target}` produced by the LLM. |
+| **Interaction log** | The full trace of every decision and outcome. |
 
 ---
 
-## 10. Typical classroom flow
+## 9. Typical classroom flow
 
-1. The **teacher** creates a game from a template and designs it (section 3).
-2. The **teacher** sets up student accounts (Startup Guide).
-3. Two **students** create/accept a match, each configure their crew (section 5), and
-   ready up (section 4).
-4. The class compares results in **Competitions**, reading the interaction log to
-   discuss why different parameters produced different outcomes (section 6).
+1. The **teacher** creates student accounts (**Users**).
+2. Two **students** create/accept a match and configure their teams (section 4).
+3. They ready up; the match runs; they watch the simulation and read the log (section 5).
+4. The class compares results in **History**, discussing how attributes and model
+   parameters changed the outcome.

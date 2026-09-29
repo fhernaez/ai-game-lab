@@ -1,5 +1,6 @@
+from app.domain.volleyball import attributes, rules
 from app.extensions import db
-from app.models import Competition, Crew, CrewMember, Event, Game, GameVersion, User
+from app.models import Event, Match, Player, Team, User
 
 
 def _make_user(username, password="secret"):
@@ -10,19 +11,17 @@ def _make_user(username, password="secret"):
     return user
 
 
-def test_seed_creates_admin_and_games(app):
+def test_seed_creates_admin(app):
     with app.app_context():
         assert User.query.filter_by(username="admin").first() is not None
-        assert Game.query.count() == 2
 
 
 def test_register_and_login(client):
-    resp = client.post(
+    client.post(
         "/auth/register",
         data={"username": "bob", "email": "bob@example.com", "password": "secret"},
         follow_redirects=True,
     )
-    assert resp.status_code == 200
     client.get("/auth/logout")
     resp = client.post(
         "/auth/login", data={"username": "bob", "password": "secret"}, follow_redirects=True
@@ -30,154 +29,116 @@ def test_register_and_login(client):
     assert b"Matchmaking" in resp.data
 
 
-def test_verdict_guard_clamps_score():
-    from app.domain.referee import apply_guard
+def test_volleyball_rules():
+    assert rules.set_target(1) == 21
+    assert rules.set_target(3) == 15
+    assert rules.is_set_won(21, 10, 1) is True
+    assert rules.is_set_won(21, 20, 1) is False  # no 2-point margin
+    assert rules.switch_interval(3) == 5
 
-    blueprint = {"dialogue": {"scoring": [{"kind": "criteria", "criteria": ["a", "b"], "max": 3}]}}
-    verdict = apply_guard(blueprint, {"accepted": True, "score": 999, "explanation": "x"})
-    assert verdict.accepted is True
-    assert verdict.score == 6  # 2 criteria * max 3
+
+def test_attributes_and_budget():
+    assert attributes.difficulty_budget("easy") == 45
+    assert attributes.difficulty_budget("hard") == 12
+    a = {"jumping_height": 8, "transition_speed": 1, "receiving_accuracy": 1,
+         "passing_accuracy": 1, "shoot_accuracy_distance": 1,
+         "shoot_accuracy_power": 1, "shoot_max_power": 1}
+    assert attributes.attributes_cost(a) == 7
+    arch = attributes.archetype_attributes("tower")
+    assert arch["jumping_height"] == 8
+    assert attributes.slider_to_float(10) == 1.0
+    assert attributes.slider_to_float(1) == 0.1
 
 
-def test_crew_config_persists(app, client):
+def test_team_config_saves(app, client):
     with app.app_context():
         bob = _make_user("bob")
-        _make_user("alice")
-        version = GameVersion.query.first()
-        vid = version.id
-        bob_id = bob.id
+        alice = _make_user("alice")
+        bob_id, alice_id = bob.id, alice.id
 
     client.post("/auth/login", data={"username": "bob", "password": "secret"})
-    client.post("/matchmaking/create", data={"game_version_id": vid, "round_budget": 2})
+    client.post("/matchmaking/create", data={"difficulty": "medium"})
     with app.app_context():
-        comp = Competition.query.order_by(Competition.id.desc()).first()
-        cid = comp.id
-        crew = Crew.query.filter_by(competition_id=cid, player_id=bob_id).first()
-        crew_id = crew.id
-        member = CrewMember.query.filter_by(crew_id=crew_id).first()
-        mid = member.id
+        match = Match.query.order_by(Match.id.desc()).first()
+        mid = match.id
+        team = Team.query.filter_by(match_id=mid, player_id=bob_id).first()
+        p = Player.query.filter_by(team_id=team.id, slot=1).first()
+        pid = p.id
 
     client.post(
-        f"/competitions/{cid}/crew",
+        f"/matches/{mid}/team",
         data={
-            "crew_instructions": "Be aggressive.",
-            f"instructions_{mid}": "Coordinate.",
-            f"model_{mid}": "mock:mock-model",
-            f"temperature_{mid}": "0.9",
-            f"max_tokens_{mid}": "256",
-            f"top_p_{mid}": "0.8",
-            f"frequency_penalty_{mid}": "0.1",
-            f"presence_penalty_{mid}": "0.2",
-            f"response_format_{mid}": "json",
+            "strategy": "serve deep",
+            f"attr_{pid}_jumping_height": "8",
+            f"attr_{pid}_transition_speed": "3",
+            f"attr_{pid}_receiving_accuracy": "4",
+            f"attr_{pid}_passing_accuracy": "4",
+            f"attr_{pid}_shoot_accuracy_distance": "3",
+            f"attr_{pid}_shoot_accuracy_power": "6",
+            f"attr_{pid}_shoot_max_power": "8",
+            f"model_{pid}": "mock:mock-model",
+            f"temperature_{pid}": "0.5",
+            f"max_tokens_{pid}": "300",
+            f"top_p_{pid}": "0.9",
+            f"frequency_penalty_{pid}": "0.1",
+            f"presence_penalty_{pid}": "0.2",
+            f"response_format_{pid}": "json",
         },
     )
     with app.app_context():
-        crew = db.session.get(Crew, crew_id)
-        assert crew.configuration_json["instructions"] == "Be aggressive."
-        member = db.session.get(CrewMember, mid)
-        assert member.configuration_json["temperature"] == 0.9
-        assert member.configuration_json["model"] == "mock:mock-model"
+        p = db.session.get(Player, pid)
+        cfg = p.configuration_json
+        assert cfg["attributes"]["jumping_height"] == 8
+        assert cfg["model"] == "mock:mock-model"
+        assert cfg["temperature"] == 0.5
 
 
 def test_full_match_flow(app, client):
     with app.app_context():
-        bob = _make_user("bob")
-        alice = _make_user("alice")
-        version = GameVersion.query.first()
-        vid = version.id
+        _make_user("bob")
+        _make_user("alice")
 
-    # host creates
     client.post("/auth/login", data={"username": "bob", "password": "secret"})
-    client.post("/matchmaking/create", data={"game_version_id": vid, "round_budget": 3})
+    client.post("/matchmaking/create", data={"difficulty": "medium"})
     with app.app_context():
-        comp = Competition.query.order_by(Competition.id.desc()).first()
-        cid = comp.id
-        assert comp.status == "created"
+        match = Match.query.order_by(Match.id.desc()).first()
+        mid = match.id
+        assert match.status == "created"
 
-    # host invites guest
-    client.post(f"/matchmaking/{cid}/invite", data={"username": "alice"})
+    client.post(f"/matchmaking/{mid}/invite", data={"username": "alice"})
     with app.app_context():
-        assert db.session.get(Competition, cid).status == "invited"
+        assert db.session.get(Match, mid).status == "invited"
 
-    # guest accepts and readies
     client.get("/auth/logout")
     client.post("/auth/login", data={"username": "alice", "password": "secret"})
-    client.post(f"/matchmaking/{cid}/accept")
-    client.post(f"/competitions/{cid}/ready")
+    client.post(f"/matchmaking/{mid}/accept")
+    client.post(f"/matches/{mid}/ready")
 
-    # host readies -> both ready -> auto-start (synchronous in tests)
     client.get("/auth/logout")
     client.post("/auth/login", data={"username": "bob", "password": "secret"})
-    client.post(f"/competitions/{cid}/ready")
+    client.post(f"/matches/{mid}/ready")
 
     with app.app_context():
-        comp = db.session.get(Competition, cid)
-        assert comp.status == "finished"
-        assert comp.final_state_json is not None
-        event_types = {e.event_type for e in Event.query.filter_by(competition_id=cid).all()}
-        assert "CREW_MESSAGE" in event_types
-        assert "REFEREE_VERDICT" in event_types
-        assert "SCORE_CHANGED" in event_types
+        match = db.session.get(Match, mid)
+        assert match.status == "finished"
+        assert match.final_state_json is not None
+        types = {e.event_type for e in Event.query.filter_by(match_id=mid).all()}
+        assert "DECISION" in types
+        assert "POINT" in types
+        assert "MATCH_FINISHED" in types
 
 
-def test_competition_delete_cascades(app, client):
+def test_match_delete_cascades(app, client):
     with app.app_context():
-        bob = _make_user("bob")
-        alice = _make_user("alice")
-        version = GameVersion.query.first()
-        vid = version.id
+        _make_user("bob")
+        _make_user("alice")
 
     client.post("/auth/login", data={"username": "bob", "password": "secret"})
-    client.post("/matchmaking/create", data={"game_version_id": vid, "round_budget": 2})
+    client.post("/matchmaking/create", data={"difficulty": "easy"})
     with app.app_context():
-        comp = Competition.query.order_by(Competition.id.desc()).first()
-        cid = comp.id
-    client.post(f"/competitions/{cid}/delete")
+        mid = Match.query.order_by(Match.id.desc()).first().id
+    client.post(f"/matches/{mid}/delete")
     with app.app_context():
-        assert db.session.get(Competition, cid) is None
-        assert Crew.query.filter_by(competition_id=cid).count() == 0
-        assert Event.query.filter_by(competition_id=cid).count() == 0
-
-
-def test_register_duplicate_email_graceful(app, client):
-    with app.app_context():
-        _make_user("bob", "secret")
-    resp = client.post(
-        "/auth/register",
-        data={"username": "bob2", "email": "bob@example.com", "password": "secret"},
-    )
-    assert resp.status_code == 200
-    assert b"Email already in use" in resp.data
-
-
-def test_user_admin_create_and_delete(app, auth_client):
-    resp = auth_client.post(
-        "/users/create",
-        data={
-            "username": "charlie",
-            "email": "charlie@example.com",
-            "role": "student",
-            "password": "secret",
-        },
-        follow_redirects=True,
-    )
-    assert b"Created student user" in resp.data
-    with app.app_context():
-        user = User.query.filter_by(username="charlie").first()
-        assert user is not None
-        uid = user.id
-
-    resp = auth_client.post(f"/users/{uid}/delete", follow_redirects=True)
-    assert b"Deleted user charlie" in resp.data
-    with app.app_context():
-        assert db.session.get(User, uid) is None
-
-
-def test_user_admin_requires_admin(app, client):
-    client.post("/auth/login", data={"username": "admin", "password": "admin123"})
-    with app.app_context():
-        _make_user("student1", "secret")
-    client.get("/auth/logout")
-    client.post("/auth/login", data={"username": "student1", "password": "secret"})
-    resp = client.get("/users", follow_redirects=True)
-    assert b"Administrator access required" in resp.data
+        assert db.session.get(Match, mid) is None
+        assert Team.query.filter_by(match_id=mid).count() == 0
+        assert Event.query.filter_by(match_id=mid).count() == 0

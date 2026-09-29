@@ -19,23 +19,12 @@ def index():
             raw = request.form.get(f"models_{pid}", "")
             provider_models[pid] = [m.strip() for m in raw.split(",") if m.strip()]
         settings_service.set_provider_models(provider_models)
-
-        roles = settings_service.available_roles()
-        role_defaults = {}
-        for role in roles:
-            ref = request.form.get(f"role_default_{role}", "")
-            if ref:
-                role_defaults[role] = ref
-        settings_service.set_role_defaults(role_defaults)
         settings_service.set_default_model(request.form.get("default_model", ""))
         flash("Settings saved.", "success")
         return redirect(url_for("settings.index"))
 
     provider_models = settings_service.get_provider_models()
-    roles = settings_service.available_roles()
-    role_defaults = settings_service.get_role_defaults()
     default_model = settings_service.get_default_model()
-
     info = {
         "database_uri": _redact(current_app.config["SQLALCHEMY_DATABASE_URI"]),
         "default_provider": current_app.config["DEFAULT_PROVIDER"],
@@ -48,8 +37,6 @@ def index():
         is_admin=is_admin,
         providers=providers,
         provider_models=provider_models,
-        roles=roles,
-        role_defaults=role_defaults,
         default_model=default_model,
     )
 

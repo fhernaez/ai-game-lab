@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Configure team — AI Game Lab{% endblock %}
+{% block content %}
+<h1>{{ team.name }}</h1>
+<p class="muted">Difficulty: {{ match.difficulty }} · Budget: {{ budget }} points · Spent: {{ cost }} points</p>
+
+<form method="post">
+  <div class="panel">
+    <h2>Team strategy</h2>
+    <textarea name="strategy" rows="2">{{ team.configuration_json.get('strategy', '') }}</textarea>
+    <label>Quick archetype (applies to both players, overrides sliders)</label>
+    <select name="archetype" id="archetype-select">
+      <option value="">— custom —</option>
+      {% for id, a in archetypes.items() %}
+      <option value="{{ id }}">{{ a.name }}</option>
+      {% endfor %}
+    </select>
+    <p class="muted" id="archetype-desc"></p>
+  </div>
+
+  {% for p in team.players | sort(attribute='slot') %}
+  <div class="panel">
+    <div class="row" style="justify-content: space-between;">
+      <h2 style="margin:0;">{{ p.configuration_json.get('name', 'Player ' ~ p.slot) }}</h2>
+      <span class="badge">slot {{ p.slot }}</span>
+    </div>
+
+    <h3>Athlete attributes (1–10)</h3>
+    {% for key in attribute_keys %}
+    <div class="attr-row">
+      <div>
+        <label>{{ attribute_labels[key] }}</label>
+        <p class="muted small">{{ attribute_descriptions[key] }}</p>
+      </div>
+      <input type="range" min="1" max="10" step="1" name="attr_{{ p.id }}_{{ key }}"
+             value="{{ p.configuration_json.get('attributes', {}).get(key, 1) }}"
+             oninput="this.nextElementSibling.textContent = this.value">
+      <output>{{ p.configuration_json.get('attributes', {}).get(key, 1) }}</output>
+    </div>
+    {% endfor %}
+
+    <h3>LLM model &amp; parameters</h3>
+    <div class="grid grid-2">
+      <div>
+        <label>Model</label>
+        <select name="model_{{ p.id }}">
+          <option value="">(default model)</option>
+          {% for pid in providers %}
+          <optgroup label="{{ pid }}">
+            {% for m in provider_models.get(pid, []) %}
+            {% set ref = pid ~ ':' ~ m %}
+            <option value="{{ ref }}" {% if p.configuration_json.get('model') == ref %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+        <label>System prompt / strategy</label>
+        <textarea name="instructions_{{ p.id }}" rows="2">{{ p.configuration_json.get('instructions', '') }}</textarea>
+      </div>
+      <div>
+        <label>Temperature <span class="muted">— how varied/creative the decisions are</span></label>
+        <input type="number" step="0.1" name="temperature_{{ p.id }}" value="{{ p.configuration_json.get('temperature', 0.7) }}">
+        <label>Max tokens <span class="muted">— max length of the response</span></label>
+        <input type="number" name="max_tokens_{{ p.id }}" value="{{ p.configuration_json.get('max_tokens', 256) }}">
+        <label>Top-p <span class="muted">— narrows/expands sampled words</span></label>
+        <input type="number" step="0.05" name="top_p_{{ p.id }}" value="{{ p.configuration_json.get('top_p', 1.0) }}">
+        <label>Frequency penalty</label>
+        <input type="number" step="0.1" name="frequency_penalty_{{ p.id }}" value="{{ p.configuration_json.get('frequency_penalty', 0.0) }}">
+        <label>Presence penalty</label>
+        <input type="number" step="0.1" name="presence_penalty_{{ p.id }}" value="{{ p.configuration_json.get('presence_penalty', 0.0) }}">
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="row" style="margin-bottom: 1rem;">
+    <button class="btn" type="submit">Save team</button>
+    <a class="btn btn-secondary" href="{{ url_for('matches.view', match_id=match.id) }}">Back</a>
+  </div>
+</form>
+
+<script>
+  const ARCHETYPES = {{ archetypes | tojson }};
+  const select = document.getElementById('archetype-select');
+  const desc = document.getElementById('archetype-desc');
+  select.addEventListener('change', () => {
+    const a = ARCHETYPES[select.value];
+    desc.textContent = a ? a.description : '';
+    if (!a) return;
+    const rows = document.querySelectorAll('.attr-row');
+    // each player block: 7 attribute rows; fill both players
+    document.querySelectorAll('input[type=range]').forEach((slider) => {
+      const key = slider.name.split('_').slice(-1)[0];
+      if (key in a.attributes) {
+        slider.value = a.attributes[key];
+        slider.nextElementSibling.textContent = a.attributes[key];
+      }
+    });
+  });
+</script>
+{% endblock %}

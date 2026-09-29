@@ -52,81 +52,47 @@ class User(db.Model):
         return self.role == "admin"
 
 
-class Game(db.Model):
-    __tablename__ = "games"
+class Match(db.Model):
+    __tablename__ = "matches"
 
     id = db.Column(db.Integer, primary_key=True)
-    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    name = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text, default="")
-    status = db.Column(db.String(20), default="draft")
-    current_version_id = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-    updated_at = db.Column(db.DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-
-    versions = db.relationship(
-        "GameVersion", backref="game", lazy=True, order_by="GameVersion.id"
-    )
-
-
-class GameVersion(db.Model):
-    __tablename__ = "game_versions"
-
-    id = db.Column(db.Integer, primary_key=True)
-    game_id = db.Column(db.Integer, db.ForeignKey("games.id"), nullable=False)
-    version = db.Column(db.String(20), nullable=False)
-    blueprint_json = db.Column(db.JSON, nullable=False, default=dict)
-    blueprint_files = db.Column(db.JSON, nullable=False, default=dict)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-
-    __table_args__ = (db.UniqueConstraint("game_id", "version", name="uq_game_version"),)
-
-
-class Competition(db.Model):
-    __tablename__ = "competitions"
-
-    id = db.Column(db.Integer, primary_key=True)
-    game_version_id = db.Column(db.Integer, db.ForeignKey("game_versions.id"), nullable=False)
     host_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     guest_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     status = db.Column(db.String(20), default="created")
-    round_budget = db.Column(db.Integer, default=6)
-    wall_clock_timeout = db.Column(db.Integer, default=600)
+    difficulty = db.Column(db.String(20), default="medium")
     host_ready = db.Column(db.Boolean, default=False)
     guest_ready = db.Column(db.Boolean, default=False)
-    configuration_json = db.Column(db.JSON, nullable=False, default=dict)
+    seed = db.Column(db.Integer, default=0)
     final_state_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     started_at = db.Column(db.DateTime(timezone=True), nullable=True)
     finished_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    game_version = db.relationship("GameVersion")
     host = db.relationship("User", foreign_keys=[host_id])
     guest = db.relationship("User", foreign_keys=[guest_id])
-    crews = db.relationship("Crew", backref="competition", lazy=True)
+    teams = db.relationship("Team", backref="match", lazy=True)
 
 
-class Crew(db.Model):
-    __tablename__ = "crews"
+class Team(db.Model):
+    __tablename__ = "teams"
 
     id = db.Column(db.Integer, primary_key=True)
-    competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
+    match_id = db.Column(db.Integer, db.ForeignKey("matches.id"), nullable=False)
     player_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     name = db.Column(db.String(200), nullable=False)
+    difficulty = db.Column(db.String(20), default="medium")
     configuration_json = db.Column(db.JSON, nullable=False, default=dict)
 
     player = db.relationship("User", foreign_keys=[player_id])
-    members = db.relationship("CrewMember", backref="crew", lazy=True)
+    players = db.relationship("Player", backref="team", lazy=True)
 
 
-class CrewMember(db.Model):
-    __tablename__ = "crew_members"
+class Player(db.Model):
+    __tablename__ = "players"
 
     id = db.Column(db.Integer, primary_key=True)
-    crew_id = db.Column(db.Integer, db.ForeignKey("crews.id"), nullable=False)
-    role = db.Column(db.String(50), nullable=False)
-    speak_order = db.Column(db.Integer, default=0)
-    is_speaker = db.Column(db.Boolean, default=False)
+    team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
+    slot = db.Column(db.Integer, nullable=False)  # 1 or 2
     configuration_json = db.Column(db.JSON, nullable=False, default=dict)
 
 
@@ -134,7 +100,7 @@ class Event(db.Model):
     __tablename__ = "events"
 
     id = db.Column(db.Integer, primary_key=True)
-    competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
+    match_id = db.Column(db.Integer, db.ForeignKey("matches.id"), nullable=False)
     sequence_number = db.Column(db.Integer, nullable=False)
     event_type = db.Column(db.String(50), nullable=False)
     actor_id = db.Column(db.String(120), nullable=True)
@@ -142,35 +108,8 @@ class Event(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
 
     __table_args__ = (
-        db.UniqueConstraint("competition_id", "sequence_number", name="uq_event_seq"),
+        db.UniqueConstraint("match_id", "sequence_number", name="uq_event_seq"),
     )
-
-
-class Action(db.Model):
-    __tablename__ = "actions"
-
-    id = db.Column(db.Integer, primary_key=True)
-    competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
-    round_number = db.Column(db.Integer, nullable=False)
-    crew_id = db.Column(db.Integer, nullable=True)
-    member_id = db.Column(db.Integer, nullable=True)
-    action_type = db.Column(db.String(50), nullable=False)
-    request_json = db.Column(db.JSON, nullable=False, default=dict)
-    result_json = db.Column(db.JSON, nullable=False, default=dict)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
-
-
-class ResourceUsage(db.Model):
-    __tablename__ = "resource_usage"
-
-    id = db.Column(db.Integer, primary_key=True)
-    competition_id = db.Column(db.Integer, db.ForeignKey("competitions.id"), nullable=False)
-    member_id = db.Column(db.String(120), nullable=True)
-    tokens_input = db.Column(db.Integer, default=0)
-    tokens_output = db.Column(db.Integer, default=0)
-    model = db.Column(db.String(120), default="")
-    duration_ms = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
 
 
 class AppSetting(db.Model):

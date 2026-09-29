@@ -4,44 +4,42 @@
 <h1>Matchmaking</h1>
 
 <div class="panel">
-  <h2>Create a competition</h2>
+  <h2>Create a match</h2>
   <form method="post" action="{{ url_for('matchmaking.create') }}" class="row">
-    <select name="game_version_id" required>
-      <option value="" disabled selected>Select a game version…</option>
-      {% for version in versions %}
-      <option value="{{ version.id }}">{{ version.game.name }} — v{{ version.version }}</option>
-      {% endfor %}
+    <select name="difficulty">
+      <option value="easy">Easy (45 points)</option>
+      <option value="medium" selected>Medium (25 points)</option>
+      <option value="hard">Hard (12 points)</option>
     </select>
-    <input type="number" name="round_budget" placeholder="Rounds" min="1" value="6" style="max-width: 100px;">
     <button class="btn" type="submit">Create</button>
   </form>
 </div>
 
 <div class="panel">
-  <h2>My competitions</h2>
-  {% if competitions %}
+  <h2>My matches</h2>
+  {% if matches %}
   <table>
-    <thead><tr><th>ID</th><th>Game</th><th>Opponent</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>ID</th><th>Difficulty</th><th>Opponent</th><th>Status</th><th></th></tr></thead>
     <tbody>
-      {% for c in competitions %}
+      {% for m in matches %}
       <tr>
-        <td>{{ c.id }}</td>
-        <td>{{ c.game_version.game.name }}</td>
+        <td>{{ m.id }}</td>
+        <td>{{ m.difficulty }}</td>
         <td>
-          {% if c.host_id == current_user.id %}
-            {{ c.guest.username if c.guest else '—' }}
+          {% if m.host_id == current_user.id %}
+            {{ m.guest.username if m.guest else '—' }}
           {% else %}
-            {{ c.host.username }}
+            {{ m.host.username }}
           {% endif %}
         </td>
-        <td><span class="badge badge-{{ c.status }}">{{ c.status }}</span></td>
-        <td><a class="btn btn-secondary btn-sm" href="{{ url_for('competitions.view', competition_id=c.id) }}">Open</a></td>
+        <td><span class="badge badge-{{ m.status }}">{{ m.status }}</span></td>
+        <td><a class="btn btn-secondary btn-sm" href="{{ url_for('matches.view', match_id=m.id) }}">Open</a></td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   {% else %}
-  <p class="muted">No competitions yet. Create one above.</p>
+  <p class="muted">No matches yet. Create one above.</p>
   {% endif %}
 </div>
 

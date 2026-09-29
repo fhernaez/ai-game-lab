@@ -2,102 +2,54 @@
 
 ## Goal
 
-The application should teach how LLMs work through experimentation: configure every
-model parameter of every crew member, run a dialogue, and read the interaction log to
-understand how the result was reached.
+Teach how LLMs work through a single, deeply-simulated game (beach volleyball). A match
+is the outcome of many small decisions by AI agents, each combining a **mind** (LLM) and
+a **body** (athlete attributes).
 
-The interface must make the relationship between configuration and model behavior
-visible.
+The interface must always make visible:
+
+1. **what each parameter does**, and
+2. **how it changes the player's behavior** — both for athlete attributes and for LLM
+   model parameters.
+
+## The core mental model: mind vs body
+
+- **The mind (LLM)** chooses *what* to do — serve to the deep corner, set to the net,
+  spike hard, or place soft. Its behavior is shaped by model + model parameters.
+- **The body (attributes)** determines *whether it works* — whether the spike clears the
+  net, whether the dig stays in bounds, whether the player reaches the ball in time.
+
+A student learns by changing one knob at a time and reading the interaction log to see
+the causal chain: decision → execution → outcome.
 
 ## Concept progression
 
-### Level 1 — The crew member
-
-Student learns:
-
-- a crew is a team of LLM agents
-- each member has a role and an objective
-- each member uses a model
-
-### Level 2 — Model parameters
-
-Student learns what each parameter does by changing it and reading the dialogue:
-
-- temperature
-- max tokens
-- top-p
-- frequency/presence penalties
-- stop sequences
-- system prompt
-
-The UI must never imply a "better" value — only different behavior.
-
-### Level 3 — The dialogue
-
-Student learns:
-
-- members speak in order each round
-- a message is fed into the next member's prompt
-- one member proposes the team's action
-- the referee returns a verdict
-
-### Level 4 — Skills and instructions
-
-Student learns:
-
-- skills are reusable capabilities
-- instructions (system prompt) steer behavior
-- different members can have different skills
-
-### Level 5 — Resources
-
-Student learns:
-
-- models have costs
-- token budgets matter
-- memory is limited
-- computation is a resource
-
-### Level 6 — The referee
-
-Student learns:
-
-- the referee is an LLM too
-- its verdict is structured and clamped by the rules
-- an LLM and deterministic rules can work together
-
-### Level 7 — Experimentation
-
-Student compares configurations:
-
-- different models
-- different parameters
-- different prompts
-- different skills
-- different resource allocations
-
-The platform should encourage experimentation rather than merely producing a winner.
-
-### Level 8 — Technical translation
-
-Advanced students read and fine-tune the generated blueprint (Markdown/YAML/JSON)
-through the Technical view.
+1. **The agent** — a team has two players; each is an LLM with a role.
+2. **Athlete attributes** — what each of the 7 skills does (jump, speed, dig, set,
+   aim, power control, spike power).
+3. **LLM model parameters** — temperature, top-p, penalties, max tokens, system prompt.
+4. **Point-buy economy** — budgets and trade-offs; specialization vs balance.
+5. **The physics** — how serve/flight/defense convert decisions + attributes into
+   outcomes (stochastic, but seeded and readable).
+6. **The match** — sets, points, faults, court switch, best-of-3.
+7. **The interaction log** — reading the full trace to understand *why* a point was won
+   or lost.
+8. **Experimentation** — compare models, parameters, and attribute allocations.
 
 ## Transparency — the interaction log
 
-The most important surface is the **interaction log**. For every dialogue message, the
-UI should allow students to inspect:
+For every play, the UI allows the student to inspect:
 
-- who spoke (role, round)
-- the full prompt that was sent
-- the parameters used for that call
-- the raw model response
-- the parsed structured result
-- tokens consumed and duration
-- how the referee scored it
+- which player acted, and in what situation;
+- the prompt sent to the LLM;
+- the model and model parameters used;
+- the raw response and the parsed decision (action, target, power);
+- the athlete attributes used;
+- the physics outcome (in bounds, out, net, dig success);
+- tokens and duration.
 
-During execution, the UI shows the interaction graphically by default: messages, actions,
-and referee verdicts appear as a visible causal chain that leads to the final result.
+During the match, the graphical simulation shows the players and ball moving; the
+interaction log records the reasoning behind each movement.
 
-Do not expose hidden chain-of-thought. Show concise decision summaries, structured
-inputs/outputs, and observable events instead.
+Do not expose hidden chain-of-thought. Show concise decisions, structured inputs/outputs,
+and observable events.

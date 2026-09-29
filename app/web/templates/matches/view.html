@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Match #{{ match.id }} — AI Game Lab{% endblock %}
+{% block content %}
+<div class="row" style="justify-content: space-between;">
+  <h1>Match #{{ match.id }} — Beach Volleyball</h1>
+  <div class="row">
+    <span class="badge badge-{{ match.status }}">{{ match.status }}</span>
+    <span class="badge">{{ match.difficulty }}</span>
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('history.detail', match_id=match.id) }}">Interaction log</a>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="row" style="flex-wrap: wrap; gap: 0.75rem;">
+    {% if is_host and match.status == 'created' %}
+      <form method="post" action="{{ url_for('matchmaking.invite', match_id=match.id) }}" class="row">
+        <select name="username" required>
+          <option value="" disabled selected>Invite an online player…</option>
+          {% for u in online %}
+          <option value="{{ u.username }}">{{ u.username }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn" type="submit">Invite</button>
+      </form>
+    {% endif %}
+
+    {% if is_guest and match.status == 'invited' %}
+      <form method="post" action="{{ url_for('matchmaking.accept', match_id=match.id) }}">
+        <button class="btn" type="submit">Accept</button>
+      </form>
+      <form method="post" action="{{ url_for('matchmaking.decline', match_id=match.id) }}">
+        <button class="btn btn-danger" type="submit">Decline</button>
+      </form>
+    {% endif %}
+
+    {% if my_team and match.status == 'accepted' %}
+      <a class="btn" href="{{ url_for('teams.configure', match_id=match.id) }}">Configure my team</a>
+      {% if (is_host and not match.host_ready) or (is_guest and not match.guest_ready) %}
+      <form method="post" action="{{ url_for('matches.ready', match_id=match.id) }}">
+        <button class="btn" type="submit">I'm ready</button>
+      </form>
+      {% else %}
+      <span class="badge badge-finished">Ready</span>
+      {% endif %}
+    {% endif %}
+
+    {% if match.status in ('queued', 'running') %}
+      <form method="post" action="{{ url_for('matches.stop', match_id=match.id) }}">
+        <button class="btn btn-danger" type="submit">Stop</button>
+      </form>
+    {% endif %}
+
+    {% if match.status in ('created', 'invited', 'accepted') %}
+      <form method="post" action="{{ url_for('matches.cancel', match_id=match.id) }}">
+        <button class="btn btn-danger" type="submit">Cancel</button>
+      </form>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('matches.delete', match_id=match.id) }}"
+          onsubmit="return confirm('Delete this match?');">
+      <button class="btn btn-danger" type="submit">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div id="match-root" data-match-id="{{ match.id }}" data-status="{{ match.status }}"></div>
+
+<div class="viz-wrap">
+  <div class="panel" id="court">
+    <div class="scoreboard" id="scoreboard"></div>
+    <svg id="court-svg" viewBox="0 0 800 460" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="sidebar">
+    <h2 style="margin-top:0;">Interaction log</h2>
+    <div class="event-log" id="event-log"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/volleyball_court.js') }}"></script>
+{% endblock %}

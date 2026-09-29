@@ -46,20 +46,20 @@ def create_app(config_object=None):
 def register_blueprints(app):
     from .web.auth import bp as auth_bp
     from .web.settings import bp as settings_bp
-    from .web.games import bp as games_bp
     from .web.users import bp as users_bp
     from .web.matchmaking import bp as matchmaking_bp
-    from .web.competitions import bp as competitions_bp
-    from .web.replay import bp as replay_bp
+    from .web.teams import bp as teams_bp
+    from .web.matches import bp as matches_bp
+    from .web.history import bp as history_bp
     from .web.api import bp as api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(settings_bp)
-    app.register_blueprint(games_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(matchmaking_bp)
-    app.register_blueprint(competitions_bp)
-    app.register_blueprint(replay_bp)
+    app.register_blueprint(teams_bp)
+    app.register_blueprint(matches_bp)
+    app.register_blueprint(history_bp)
     app.register_blueprint(api_bp)
 
     @app.route("/")

@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
-from ..models import Competition, Crew, Game, User
+from ..models import Match, Team, User
 
 bp = Blueprint("users", __name__, url_prefix="/users")
 
@@ -90,15 +90,14 @@ def delete(user_id):
         return redirect(url_for("users.index"))
 
     has_data = (
-        Competition.query.filter(
-            (Competition.host_id == user.id) | (Competition.guest_id == user.id)
+        Match.query.filter(
+            (Match.host_id == user.id) | (Match.guest_id == user.id)
         ).first()
-        or Crew.query.filter_by(player_id=user.id).first()
-        or Game.query.filter_by(owner_id=user.id).first()
+        or Team.query.filter_by(player_id=user.id).first()
     )
     if has_data:
         flash(
-            f"Cannot delete {user.username}: they own games, crews, or matches.",
+            f"Cannot delete {user.username}: they own teams or matches.",
             "error",
         )
         return redirect(url_for("users.index"))

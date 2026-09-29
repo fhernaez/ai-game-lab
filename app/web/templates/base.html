@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}AI Game Lab{% endblock %}</title>
+  <title>{% block title %}AI Game Lab — Beach Volleyball{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
@@ -12,9 +12,8 @@
     <a class="brand" href="{{ url_for('matchmaking.index') }}">AI Game Lab</a>
     {% if current_user.is_authenticated %}
     <nav>
-      <a href="{{ url_for('games.index') }}">Games</a>
       <a href="{{ url_for('matchmaking.index') }}">Matchmaking</a>
-      <a href="{{ url_for('competitions.index') }}">Competitions</a>
+      <a href="{{ url_for('history.index') }}">History</a>
       {% if current_user.is_admin %}
       <a href="{{ url_for('users.index') }}">Users</a>
       {% endif %}

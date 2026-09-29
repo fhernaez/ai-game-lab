@@ -1,42 +1,47 @@
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
-from ..application import competition_service, presence_service
-from ..models import Competition
+from ..application import match_service, presence_service
+from ..models import Match
 
 bp = Blueprint("api", __name__, url_prefix="/api")
 
 
-@bp.route("/competitions/<int:competition_id>/events")
+@bp.route("/matches/<int:match_id>/events")
 @login_required
-def events(competition_id):
-    competition = Competition.query.get_or_404(competition_id)
+def events(match_id):
+    match = Match.query.get_or_404(match_id)
     after = request.args.get("after", type=int)
-    result = competition_service.events_after(competition, after)
-    return jsonify({"events": result, "status": competition.status})
+    result = match_service.events_after(match, after)
+    return jsonify({"events": result, "status": match.status})
 
 
-@bp.route("/competitions/<int:competition_id>/state")
+@bp.route("/matches/<int:match_id>/state")
 @login_required
-def state(competition_id):
-    competition = Competition.query.get_or_404(competition_id)
-    crews = [
-        {
-            "name": c.name,
-            "player": c.player.username if c.player else "",
-            "members": [
-                {"role": m.role, "speak_order": m.speak_order, "is_speaker": m.is_speaker}
-                for m in sorted(c.members, key=lambda x: x.speak_order)
-            ],
-        }
-        for c in competition.crews
-    ]
+def state(match_id):
+    match = Match.query.get_or_404(match_id)
+    teams = []
+    for team in match.teams:
+        teams.append(
+            {
+                "name": team.name,
+                "player": team.player.username if team.player else "",
+                "players": [
+                    {
+                        "slot": p.slot,
+                        "name": (p.configuration_json or {}).get("name", f"Player {p.slot}"),
+                        "attributes": (p.configuration_json or {}).get("attributes", {}),
+                    }
+                    for p in sorted(team.players, key=lambda x: x.slot)
+                ],
+            }
+        )
     return jsonify(
         {
-            "status": competition.status,
-            "round_budget": competition.round_budget,
-            "final_state": competition.final_state_json,
-            "crews": crews,
+            "status": match.status,
+            "difficulty": match.difficulty,
+            "final_state": match.final_state_json,
+            "teams": teams,
         }
     )
 

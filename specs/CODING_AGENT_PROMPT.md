@@ -1,151 +1,104 @@
-# Coding Agent Prompt — AI Game Lab V2
+# Coding Agent Prompt — AI Game Lab V3 (Beach Volleyball)
 
-You are the lead software engineer implementing **AI Game Lab**, an educational,
-multi-user web application for secondary-school students.
+You are the lead software engineer implementing **AI Game Lab V3**, an educational,
+multi-user web application focused on a **single game: beach volleyball**.
 
-Read all files in this specification before writing code.
+Read all files in this specification before writing code, especially
+`VOLLEYBALL_SPEC.md`.
 
 ## Mission
 
-Build a clean, maintainable, extensible Flask application that allows students to:
+Build a clean, maintainable, extensible Flask application where students:
 
 1. log in and see who is online
-2. create a competition and invite another online player
+2. create a match (choose difficulty) and invite another online player
 3. accept/decline an invitation
-4. configure their own crew (models + full parameters per member)
-5. mark ready; the game starts when both players are ready
-6. watch the dialogue (crew members speaking, the referee returning verdicts)
-7. read the interaction log (prompt, parameters, response per message)
-8. see referee verdicts and score evolution
-9. inspect and replay a competition
-10. inspect and edit the technical (Markdown/YAML/JSON) representation
-
-The application must teach how LLMs work through experimentation.
+4. configure their team of 2 players: athlete attributes (sliders 1–10), a preset
+   archetype, an LLM model (from the provider list), and LLM model parameters — each with
+   a plain-language explanation
+5. mark ready; the match starts when both are ready
+6. watch the graphical match simulation (players + ball on the court)
+7. read the interaction log (decision, attributes, physics outcome per play)
+8. browse match history (all matches stored in the database)
+9. administrators manage users and settings
 
 ## Non-negotiable architecture
 
 - Flask is the web layer, not the game engine.
-- Keep domain logic (dialogue, referee, guard) independent from Flask.
-- Use application services between HTTP routes and domain logic.
-- Use PostgreSQL and Redis (queue + presence).
-- Use SQLAlchemy, Alembic, Flask-Login.
-- Use Jinja2 + HTMX + a small amount of JavaScript.
-- Implement a multi-provider / multi-model LLM abstraction.
-- Do not hard-code a particular LLM vendor into the dialogue engine.
-- Game definitions are versioned; competitions reference immutable game versions.
-- Use structured configuration internally; generate Markdown/YAML artifacts.
-- Provide a round-trip blueprint importer.
-- **The game is a dialogue**: implement a generic `speak → act → referee` round loop.
-- **The referee is an LLM** returning a structured verdict; apply a schema/bounds guard.
-- **Store the full interaction log** (prompt, parameters, raw + parsed response, tokens)
-  on every dialogue event.
-- **Multi-user matches**: invite an online player, per-player crew ownership, ready-up.
-- Do not use Markdown as the primary database.
-- Do not allow student-authored Python execution or unrestricted agent tools.
-- Run in its own venv; ship a `requirements.txt`.
+- Keep the volleyball domain (state, rules, physics, attributes, engine) Flask-free in
+  `app/domain/volleyball/`.
+- Use application services between routes and domain.
+- PostgreSQL + Redis (queue + presence); SQLAlchemy + Alembic; Flask-Login.
+- Jinja2 + HTMX + a small amount of JavaScript.
+- Multi-provider / multi-model LLM abstraction; models selected from `LLM_PROVIDERS`.
+- **No generic game designer.** The game is beach volleyball, implemented once, well.
+- **The graphical simulation is an independent module** (`volleyball_court.js`), driven
+  only by the event stream, so it can be replaced without touching the rest of the app.
+- Store the full interaction log (prompt, model, model params, raw + parsed decision,
+  athlete attributes, physics outcome) on every `DECISION` event.
+- Run in its own venv; ship `requirements.txt`.
 
 ## Educational UX
 
-The app should feel like a laboratory. The two most important surfaces are:
+The two most important surfaces are:
 
-1. **Crew configuration** — full model parameters per member, each with a plain-language
-   explanation.
-2. **The interaction log** — the readable trace of how the result was reached.
-
-Use friendly labels. Advanced parameters may be grouped under an "Advanced" section.
-A **Technical view** toggle must always be available.
+1. **Team configuration** — athlete sliders (1–10) + archetypes + LLM model/params, every
+   control with a plain-language explanation of how it changes behavior.
+2. **The interaction log + match simulation** — the readable trace of how the result was
+   reached.
 
 ## Main navigation
 
-1. **General Settings** (admin): LLM providers (env-defined, read-only), editable model
-   lists per provider, role defaults, global default model, resource limits. No secrets.
-2. **User Administration** (admin): list users, create users (username, email, role,
-   password), change role, and delete users. Duplicate usernames/emails must be handled
-   gracefully (a friendly message, not a 500).
-3. **Game Designer**: identity, objective, 1v1, crew roles + speak order, speaker role,
-   rules, actions, scoring, referee, resources, playground permissions, test, version.
-4. **Matchmaking**: create competition (game + round budget), invite an online player,
-   accept/decline, configure your crew, ready-up.
-5. **Competitions**: run/start, stop, delete; graphical dialogue view (default) and the
-   interaction log / event timeline (alternate).
-6. **Replay**: full event timeline, actions, verdicts, resource usage.
+1. **General Settings** (admin): providers (env, read-only), editable model lists,
+   global default model.
+2. **User Administration** (admin): list/create/role/delete users; graceful duplicate
+   handling (no 500).
+3. **Matchmaking**: create match (difficulty), invite an online player, accept/decline,
+   configure team, ready-up.
+4. **Match**: live graphical simulation + interaction log; start/stop/delete controls.
+5. **History**: browse all finished matches and their interaction logs.
 
-## Dialogue runtime
+## The volleyball engine
 
-The runtime must support:
+Implement `app/domain/volleyball/`:
 
-- two crews, each a set of crew members (roles with speak order)
-- a speaker/proposer role per crew
-- a referee model
-- the `speak → act → referee` round loop
-- a fixed `round_budget` (set per competition) and a wall-clock safety timeout
-- structured actions and structured referee verdicts
-- a deterministic verdict guard (schema + bounds)
-- an event stream that drives the visualization and the interaction log
+- `state.py` — CourtState: ball `(x, y, z)`, scores, sets, server, touches, possession.
+- `rules.py` — win condition (best of 3; 21/15, win by 2), court switch
+  (`% 7` / `% 5`), 3-touch possession, block = touch #1, fault list.
+- `physics.py` — stochastic serve/flight/defense using seeded RNG and the attribute
+  trade-offs (power vs accuracy, distance vs precision, speed vs stamina).
+- `attributes.py` — the 7 attributes, slider→float mapping, point-buy cost, difficulty
+  budgets, archetypes.
+- `engine.py` — MatchEngine: rally → point → set → match loop; calls the LLM for each
+  decision and the physics for each touch; emits events.
+- `decisions.py` / prompts — the structured decision protocol.
 
-Use a clean state machine:
+All randomness is seeded per match for reproducibility.
 
-```text
-CREATED → INVITED → ACCEPTED → CONFIGURING → READY → RUNNING → FINISHED/CANCELLED/DECLINED
-```
+## Decision protocol
 
-## Prompt construction
-
-Prompts are assembled from controlled sections:
-
-1. platform instructions
-2. game rules
-3. role instructions
-4. skills
-5. crew instructions
-6. player customization
-7. current state
-8. **prior dialogue messages this round** (each member sees what was said before it)
-9. available actions
-10. resource limits
-
-Do not expose hidden chain-of-thought. Store the assembled prompt, parameters, and
-response on every dialogue event.
-
-## Referee
-
-The referee is an LLM. It returns a structured verdict:
+Each acting player's LLM returns a structured JSON decision:
 
 ```json
-{"accepted": true, "score": 3, "explanation": "..."}
+{"action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
 ```
 
-A deterministic guard validates the schema, clamps the score, and only then applies the
-state transition. Never let the referee mutate database state directly.
-
-## Agent action protocol
-
-Structured JSON objects, e.g.:
-
-```json
-{"action": "SUBMIT_ARGUMENT", "content": "..."}
-```
-
-Validate: schema → allowed action → role permission → current state → game rule. Then
-apply the state transition.
+Validate schema; clamp power to `[0,1]`; clamp target to the court. On invalid output,
+fall back to a deterministic default decision (never crash).
 
 ## Testing requirements
 
 Implement tests for:
 
 - authentication + presence
-- user administration (create/edit role/delete users, duplicate handling)
-- game creation + versioning
-- blueprint compilation + invalid configuration
-- crew/member configuration (parameters)
-- matchmaking lifecycle (invite/accept/decline/ready)
-- dialogue round loop (speak → act → referee)
-- verdict guard (schema validation + score clamping)
-- interaction log persistence (prompt/parameters/response)
-- competition lifecycle (start/stop/delete)
-- event persistence + replay
-- resource accounting
-- template loading
+- user administration (create/role/delete, duplicate handling)
+- team configuration (slider validation, point-buy budget, archetypes)
+- difficulty budgets
+- volleyball rules (win condition, court switch, faults, possession)
+- physics (seeded determinism, in/out/net outcomes)
+- match lifecycle (create/invite/accept/ready/start/stop/delete)
+- interaction log persistence
+- history browsing
 
 ## Implementation order
 
@@ -153,39 +106,26 @@ Implement tests for:
 2. configuration
 3. database + migrations
 4. authentication + presence
-5. user administration (list/create/role/delete users)
-6. game/version domain model
-7. blueprint templates
-8. GUI game editor (crew roles + speak order)
-8. GUI crew/member editor (full parameters)
-9. blueprint compiler + importer (round-trip)
-10. LLM abstraction (multi-provider/multi-model)
-11. dialogue runtime (speak → act → referee)
-12. referee verdict guard
-13. matchmaking (invite/accept/ready)
-14. competition UI + controls
-15. interaction log + visualization
-16. events/replay
-17. resource accounting
-18. tests
-19. Docker
-
-At every stage keep the application runnable.
+5. user administration
+6. attributes (7 skills, point-buy, difficulty, archetypes)
+7. volleyball domain (state, rules, physics)
+8. match engine + decision protocol
+9. LLM abstraction (multi-provider, params)
+10. matchmaking
+11. team configuration UI (sliders + archetypes + model select + explanations)
+12. match view + interaction log
+13. graphical simulation (independent module)
+14. history
+15. tests
+16. Docker
 
 ## Code quality
 
-Prefer simple explicit code over clever abstractions. No microservices, no Kubernetes,
-no large frontend framework. Pin dependencies in `requirements.txt`. Document important
-decisions. When a requirement is ambiguous, prefer the simplest implementation and
-record the assumption in `docs/DECISIONS.md`.
+Prefer simple explicit code. No microservices, no Kubernetes, no large frontend
+framework. Pin dependencies. Document decisions in `docs/DECISIONS.md`.
 
 ## First milestone
 
-The first milestone is NOT a complete game. It is:
-
-> A user can log in, create a competition, invite another online user, both configure
-> their own crews (model + parameters per member) through a GUI, mark ready, and watch
-> one round of the dialogue (each member speaks, the referee returns a verdict) appear
-> in the interaction log.
-
-Only after that workflow works should the full multi-round runtime be completed.
+> A user can log in, create a match at a difficulty, invite another user, both configure
+> their 2 players (sliders + model), ready up, and watch one rally resolve (serve → a
+> touch or two → point/fault) appear in the interaction log and the graphical simulation.

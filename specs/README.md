@@ -1,81 +1,59 @@
-# AI Game Lab — V2 Architecture Specification
+# AI Game Lab — V3 Specification (Beach Volleyball)
 
 ## Purpose
 
-AI Game Lab is an educational, browser-based, multi-user platform for secondary-school
-students to learn how large language models (LLMs) work, by pitting **crews of LLM
-models** against each other in games.
+AI Game Lab is an educational, browser-based, multi-user platform for learning how large
+language models work — by configuring **teams of AI agents** that play a **single,
+deeply-simulated game: beach volleyball**.
 
-The game is not a fixed simulation: **the game is the dialogue itself**. Two crews of
-models, plus a **referee model**, converse in bounded rounds until a final result is
-reached. Students learn by tuning each crew member's model and parameters and then
-reading the interaction log to understand exactly how the result was reached.
+V3 deliberately abandons the "generic game designer" in favor of **one game done well**.
+The layered architecture, LLM multi-provider abstraction, multi-user matchmaking, and
+interaction log are retained; the generic blueprint/dialogue system is replaced by a
+beach-volleyball engine.
 
-The platform must expose the concepts that matter:
+The pedagogical core is the separation between an agent's **mind** (the LLM: model +
+parameters, deciding tactics) and its **body** (7 athlete attributes: how well the body
+executes). Students configure both, run a match, and read the interaction log to
+understand how each decision and each attribute shaped the result.
 
-- a **crew** = a team of LLM agents, each with a role
-- **dialogue** between crew members and the referee
-- **roles, skills, tasks, prompts and instructions**
-- **models and full model parameters** (temperature, top-p, penalties, max tokens, …)
-- **memory, communication permissions, token budgets**
-- **the referee model** and its structured verdicts
-- **the interaction log** (the pedagogical trace: prompt, parameters, response)
-- **event logs, replay, and a graphical interaction view**
-- **multi-user matches**: invite another online player, each configures a crew, both
-  ready up, then the game starts
-- a **Technical view** (Markdown/YAML/JSON) for advanced students
+## What the platform exposes
 
-## Core principle
+- **Teams of 2 players** (no trainee), each player an AI agent.
+- **7 athlete attributes** per player (Vertical Leap, Sand Speed, Dig & Serve Receive,
+  Set Precision, Sniper Vision, Power Control, Spike Power), set with 1–10 sliders.
+- **Point-buy economy** with difficulty levels (Easy/Medium/Hard) and preset archetypes.
+- **LLM model + model parameters** per player, each with a plain-language explanation.
+- **Models chosen from a list** built from the `LLM_PROVIDERS` environment variable.
+- **Multi-user matches**: invite an online player, each configures their team, both ready
+  up, the match auto-starts.
+- **Interaction log**: prompt, model, parameters, raw + parsed decision, athlete
+  attributes, and physics outcome for every play.
+- **Graphical match simulation**: an independent, self-contained animation module of the
+  players and ball on the court.
+- **Match history**: every match persisted and browsable by teachers.
 
-**The game is a bounded dialogue between two crews of LLM models and a referee model.**
+## V3 architecture
 
-The final result emerges from that dialogue. The most important learning surface is the
-ability to (1) configure every model parameter of every crew member, and (2) read the
-interaction log to see how each decision was reached.
+- Flask application, Jinja2 + HTMX + a small amount of JavaScript
+- PostgreSQL for persistent data; Redis for the async queue + presence
+- SQLAlchemy + Alembic; Flask-Login
+- Multi-provider / multi-model LLM abstraction (`LLM_PROVIDERS` env)
+- Beach-volleyball domain engine (state, rules, stochastic physics, attributes)
+- Event-based interaction log
+- Multi-user matchmaking (1v1)
+- Independent graphical simulation module
+- User administration (admin)
 
-The GUI is the default authoring surface. An advanced student may always switch to the
-**Technical view** to inspect and fine-tune the generated Markdown/YAML/JSON; edits are
-validated and reconciled back into the structured configuration.
+## See also
 
-## V2 architecture
+- `VOLLEYBALL_SPEC.md` — the complete game mechanics, attribute schema, and economy.
+- `ARCHITECTURE.md`, `DATA_MODEL.md`, `EDUCATIONAL_MODEL.md`, `CODING_AGENT_PROMPT.md`,
+  `SECURITY_AND_SANDBOX.md`, `FOLDER_STRUCTURE.md`, `PROMPT_ARCHITECTURE.md`,
+  `DEFAULT_PROMPTS.md`.
 
-- Flask application
-- Server-rendered HTML with Jinja2
-- HTMX + a small amount of JavaScript for the graphical interaction view
-- PostgreSQL for persistent data
-- Redis for runtime queues / transient coordination (presence, async runs)
-- SQLAlchemy + Alembic
-- Flask-Login for accounts and session-based presence
-- Multi-provider / multi-model LLM abstraction
-- Generic **crew dialogue engine** (speak → act → referee)
-- LLM referee with a schema/bounds guard
-- Versioned Game Blueprints
-- Event-based interaction log (prompt/parameters/response per message)
-- Multi-user matchmaking (invite an online player, ready-up, auto-start)
-- Two predefined game templates
-- GUI-to-Markdown/YAML compiler + round-trip importer (Technical view)
-- Graphical agent-interaction visualization during execution
+## Non-goals
 
-## Initial predefined templates
-
-1. AI Debate Challenge
-2. AI Team Sports Challenge
-
-The second template is intentionally generic enough to be customized into football,
-rugby, tennis, volleyball, etc.
-
-## Non-goals for V2
-
-- Building a fully autonomous general-purpose agent framework
-- Arbitrary Python execution by students
-- Letting students modify referee/scoring logic during a competition
-- Real-time physics simulation
-- A complex visual game engine
-- WebSocket/SSE push (presence and updates are polled; push may be added later)
-- More than two players per match (V2 is 1v1)
-
-The architecture must nevertheless allow these capabilities to be added later.
-
-Editing the technical translation (Markdown/YAML/JSON) through the Technical view is not
-arbitrary Python execution: it is constrained by the same validation that the compiler
-applies, and Markdown is treated as inert instruction text.
+- A generic game designer for arbitrary games (removed in V3).
+- Real-time physics rendering or 3D graphics (the animation is a simple 2D simulation).
+- More than 2 teams, or more than 2 players per team.
+- WebSocket push (presence and updates are polled; push may be added later).

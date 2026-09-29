@@ -1,19 +1,22 @@
-# Proposed Folder Structure
+# Proposed Folder Structure (V3)
 
 ```text
 ai-game-lab/
-│
 ├── README.md
 ├── ARCHITECTURE.md
+├── VOLLEYBALL_SPEC.md
 ├── CODING_AGENT_PROMPT.md
 ├── EDUCATIONAL_MODEL.md
-├── GAME_BLUEPRINT_SPEC.md
+├── DATA_MODEL.md
+├── SECURITY_AND_SANDBOX.md
+├── FOLDER_STRUCTURE.md
+├── PROMPT_ARCHITECTURE.md
+├── DEFAULT_PROMPTS.md
 ├── requirements.txt
 │
 ├── docker/
 │   ├── Dockerfile
 │   └── entrypoint.sh
-│
 ├── docker-compose.yml
 │
 ├── app/
@@ -22,90 +25,52 @@ ai-game-lab/
 │   ├── extensions.py
 │   │
 │   ├── web/
+│   │   ├── auth.py users.py settings.py matchmaking.py
+│   │   ├── teams.py matches.py history.py api.py
 │   │   ├── templates/
 │   │   └── static/
-│   │
-│   ├── blueprints/
-│   │   ├── auth/
-│   │   ├── settings/
-│   │   ├── games/
-│   │   ├── matchmaking/
-│   │   ├── crews/
-│   │   ├── competitions/
-│   │   └── replay/
+│   │       ├── css/app.css
+│   │       └── js/volleyball_court.js   # independent simulation module
 │   │
 │   ├── application/
-│   │   ├── blueprint_service.py
-│   │   ├── compiler_service.py
-│   │   ├── importer_service.py
-│   │   ├── competition_service.py
 │   │   ├── matchmaking_service.py
 │   │   ├── presence_service.py
-│   │   ├── crew_service.py
-│   │   └── resource_service.py
+│   │   ├── team_service.py      # attributes, point-buy, archetypes, budget
+│   │   ├── match_service.py     # create/start/run/stop/delete, history
+│   │   ├── settings_service.py  # provider models + default model
+│   │   └── seed.py
 │   │
 │   ├── domain/
-│   │   ├── dialogue/
-│   │   │   ├── runner.py        # the speak → act → referee round loop
-│   │   │   └── round.py
-│   │   ├── crew/
-│   │   │   ├── crew.py
-│   │   │   ├── member.py
-│   │   │   └── speak_order.py
-│   │   ├── referee/
-│   │   │   ├── referee.py
-│   │   │   └── verdict.py
-│   │   ├── game/
-│   │   │   ├── state.py
-│   │   │   ├── rules.py
-│   │   │   ├── actions.py
-│   │   │   └── scoring.py
-│   │   └── events/
-│   │       ├── event.py
-│   │       └── event_store.py
+│   │   └── volleyball/
+│   │       ├── state.py         # CourtState
+│   │       ├── rules.py         # win condition, faults, possession, switch
+│   │       ├── physics.py       # stochastic serve/flight/defense
+│   │       ├── attributes.py    # 7 skills, point-buy, difficulty, archetypes
+│   │       ├── decisions.py     # decision protocol + LLM prompt assembly
+│   │       ├── engine.py        # MatchEngine
+│   │       └── events.py        # event types
 │   │
 │   ├── infrastructure/
-│   │   ├── database/
-│   │   ├── llm/
-│   │   │   ├── base.py
-│   │   │   ├── registry.py
-│   │   │   ├── ollama.py
-│   │   │   └── openai_compatible.py
-│   │   ├── memory/
-│   │   └── queue/
+│   │   ├── queue.py             # Redis/rq (sync fallback)
+│   │   └── llm/
+│   │       ├── base.py
+│   │       ├── registry.py
+│   │       ├── mock.py
+│   │       └── openai_compatible.py
 │   │
-│   └── models/
+│   └── models.py
 │
 ├── migrations/
-│
-├── game_templates/
-│   ├── debate/
-│   └── team_sports/
-│
-├── skills/
-│
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── games/
-│
+│   ├── conftest.py
+│   └── test_app.py
 └── docs/
     ├── USER_GUIDE.md
     ├── STARTUP_GUIDE.md
     └── DEVELOPER_GUIDE.md
 ```
 
-## Important distinction
-
-`game_templates/` contains canonical starting templates.
-
-Student-created games live in persistent storage and are versioned there. The filesystem
-representation can be exported/imported but is not the sole database of record.
-
 ## Local environment
-
-The application runs inside its own virtual environment. A `.venv/` directory
-(gitignored) is created per checkout:
 
 ```text
 python -m venv .venv
@@ -113,5 +78,5 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-`requirements.txt` at the repository root pins all Python dependencies so the
-application runs reproducibly. Docker remains an optional deployment path.
+`requirements.txt` pins all Python dependencies. Docker remains an optional deployment
+path.

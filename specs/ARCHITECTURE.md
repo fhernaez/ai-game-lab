@@ -11,37 +11,31 @@ Flask Web Application
   +-- Authentication & Presence
   +-- General Settings
   +-- User Administration
-  +-- Game Designer
   +-- Matchmaking (invite / accept / ready-up)
-  +-- Crew Configuration (per-player team settings)
-  +-- Competition (run, start/stop/delete)
-  +-- Interaction Log & Replay
-  +-- Agent Interaction Visualizer
+  +-- Team Configuration (2 players: attributes + LLM model/params)
+  +-- Match (live simulation, history, replay)
+  +-- Interaction Log
+  +-- Graphical Match Simulation (independent module)
   |
   v
 Application Services
   |
-  +-- Blueprint Service
-  +-- Agent Configuration Service
-  +-- Prompt/Markdown Compiler
-  +-- Blueprint Importer
   +-- Matchmaking Service
   +-- Presence Service
-  +-- Dialogue Runner (competition execution)
-  +-- Referee Service
-  +-- Resource Service
+  +-- Team Service (attributes, point-buy, archetypes)
+  +-- Match Service (create/start/run/stop/delete, history)
+  +-- Settings Service (providers/models, defaults)
   +-- LLM Service
   |
   v
-Domain Layer
+Domain Layer (beach volleyball)
   |
-  +-- Crew (team of LLM agents)
-  +-- Crew Member (role + model + parameters)
-  +-- Dialogue Loop (speak → act → referee)
-  +-- Referee + Verdict Guard
-  +-- Rule Engine
-  +-- Action Engine
-  +-- Score Engine
+  +-- CourtState (ball, scores, sets, server, touches)
+  +-- Rules (win condition, faults, possession, court switch)
+  +-- Physics (stochastic serve/flight/defense)
+  +-- Attributes (7 skills, point-buy, difficulty, archetypes)
+  +-- MatchEngine (rally → point → set → match)
+  +-- Decision protocol (LLM structured decisions)
   +-- Event System (interaction log)
   |
   +------------------+
@@ -54,225 +48,111 @@ PostgreSQL          Redis
 
 ### Web layer
 
-Responsible for:
-
-- HTTP requests, authentication, and session presence
-- forms and the GUI
-- user administration (create/manage users and assign roles)
-- graphical agent-interaction visualization (live and replay)
-- matchmaking screens (invite, accept, ready-up)
+- HTTP, authentication, session presence, forms, GUI
+- user administration
+- team configuration screens (sliders, archetypes, model selection, parameter
+  explanations)
+- matchmaking screens
+- match view + the graphical simulation (rendered client-side)
 - validation of user input
 
-The web layer must not contain game rules or dialogue mechanics.
+No game rules or physics live in the web layer.
 
 ### Application layer
 
-Responsible for workflows such as:
-
-- create game from template
-- save a game definition
-- compile GUI configuration into blueprint files
-- import/reconcile Technical view edits back into structured configuration
-- manage multi-user matches (invite, accept, decline, ready)
-- create a competition and its execution budget (rounds + wall-clock cap)
-- run the dialogue loop
-- persist the interaction log
-- allocate resources
+Workflows: create/invite/accept/ready matches, configure teams (validate budget),
+run the match (enqueue to worker), persist the interaction log, expose history.
 
 ### Domain layer
 
-Contains the generic game concepts:
-
-- Game
-- Crew
-- CrewMember (role, model, parameters)
-- DialogueRound
-- Action
-- Rule
-- Score
-- Referee
-- Verdict (structured referee output)
-- Competition
-- Event
-
-The domain layer must not depend on Flask.
+The beach-volleyball engine (`app/domain/volleyball/`): court state, rules, stochastic
+physics, athlete attributes, point-buy, difficulty, archetypes, and the match engine.
+**No Flask imports.**
 
 ### Infrastructure layer
 
-Contains:
+PostgreSQL, Redis (queue + presence), the LLM provider registry, and the filesystem.
 
-- PostgreSQL repositories
-- Redis (queue + presence)
-- LLM providers (multi-provider, multi-model)
-- filesystem blueprint storage
-- email service if later required
+## 3. The two halves of an agent
 
-## 3. The game is a dialogue
+Every Player agent is the combination of:
 
-A competition is a bounded dialogue between two **crews** and a **referee model**.
+1. **The mind** — an LLM (model + model parameters) that produces a structured
+   decision each time it acts (serve target/power, dig, set, spike, place, block).
+2. **The body** — 7 athlete attributes (0.1–1.0) that determine whether the execution
+   succeeds, via the stochastic physics.
 
-Each **round** has three phases:
+The interaction log records both halves for every play, so a student can see *why* a
+point was won or lost.
 
-```text
-1. SPEAK    every crew member, in the role's speak order, produces one message
-            (an LLM call). Each message is fed into the next member's prompt.
-2. ACT      the team's speaker/proposer role proposes one structured action.
-3. REFEREE  the referee model returns a structured verdict:
-            {accepted, score, explanation}. The app validates and clamps it,
-            then applies the state transition.
+## 4. The match engine
+
+```
+MatchEngine
+  for each set (best of 3):
+    while set not won:
+      RALLY:
+        SERVE      server's LLM chooses power + target -> physics resolves (net/out/in)
+        for each touch (max 3):
+          the acting player's LLM chooses action + target/power
+          physics resolves the touch using the athlete attributes
+        fault or point resolved -> POINT / FAULT event
+      set end -> SET_WON event
+    court switch check (combined points % 7 == 0 or % 5 == 0)
+  match end -> MATCH_FINISHED
 ```
 
-The loop repeats for a fixed number of rounds (set per competition), with a wall-clock
-safety timeout. The final score is the result.
+All randomness is seeded per match so runs are reproducible and replayable.
 
-```text
-for round in 1..round_budget:
-    ROUND_STARTED
-    for each team:
-        for each crew member (in speak order):
-            CREW_MESSAGE      # LLM call, logged with prompt + params + response
-        ACTION_PROPOSED       # the speaker/proposer role proposes an action
-        REFEREE_VERDICT       # referee model returns a structured verdict
-        (verdict guard: validate schema, clamp score)
-        SCORE_CHANGED / STATE_CHANGED
-    ROUND_FINISHED
-GAME_FINISHED
-```
+## 5. Athlete attributes and point-buy
 
-## 4. Crew and crew members
+See `VOLLEYBALL_SPEC.md` for the full schema. The `attributes` domain module:
 
-A **crew** is a team of LLM agents. Each **crew member** has:
+- maps slider 1–10 → float 0.1–1.0 (`value = slider / 10`);
+- computes team cost from the budget (each slider point costs 1);
+- enforces the difficulty budget;
+- provides the three preset archetypes.
 
-- a **role** (defined by the game blueprint)
-- a **speak order** (when it speaks within a round)
-- a **model** reference (`provider:model`)
-- **full model parameters** (see §5)
-- **skills**, **instructions/system prompt**, **memory**, **communication permissions**
-- a **resource budget** (tokens, time)
+## 6. LLM providers and model selection
 
-One role per crew is the **speaker/proposer** that submits the team's structured action
-each round. All members speak before the action is proposed.
+Providers (id, type, base_url, api_key) come from the `LLM_PROVIDERS` environment
+variable; `mock` is always available offline. The **model list per provider** and the
+**global default model** are admin-editable app settings. Team configuration renders the
+model dropdown from these lists, with `provider:model` references.
 
-## 5. Crew-member model parameters
+## 7. Interaction log (event sourcing)
 
-Every crew member exposes, and the app must allow configuring, at least:
+Every meaningful transition emits an immutable event with the full trace:
 
-- `model` (`provider:model`)
-- `temperature`
-- `max_tokens`
-- `top_p`
-- `frequency_penalty`
-- `presence_penalty`
-- `stop` (stop sequences)
-- `system_prompt` / role instructions
-- `response_format` (`json` / `text`)
-
-The **referee is also a crew member** with its own parameters; its `response_format` is
-always a structured verdict.
-
-## 6. Referee and the verdict guard
-
-The referee is a **real LLM model**, but it must return a structured verdict:
-
-```json
-{
-  "accepted": true,
-  "score": 3,
-  "explanation": "The argument was relevant and well supported."
-}
-```
-
-Before the verdict is applied, a deterministic **guard**:
-
-1. validates the JSON schema;
-2. checks `accepted` is boolean;
-3. clamps `score` to the scoring rules (min/max, valid events);
-4. attaches the referee's `explanation` to the log.
-
-The referee may interpret ambiguity, but it can never corrupt state: its output is
-always schema-validated and bounded. This is the same principle as the previous
-"deterministic validation is authoritative", now with the referee as an LLM whose
-output is fenced by deterministic checks.
-
-## 7. The interaction log (event sourcing)
-
-Every meaningful transition emits an immutable event. The **interaction log is the
-primary learning surface**, so dialogue events carry the full trace:
-
-For `CREW_MESSAGE` and `REFEREE_VERDICT` events, the payload includes:
-
-- `role`, `round`, `actor`
-- the **assembled prompt** actually sent
-- the **parameters** used for that call
-- the **raw model response**
-- the **parsed structured result**
-- `tokens_input`, `tokens_output`, `duration_ms`, `model`
-
-Event types:
-
-```text
-GAME_CREATED
-GAME_STARTED
-ROUND_STARTED
-CREW_MESSAGE
-ACTION_PROPOSED
-REFEREE_VERDICT
-STATE_CHANGED
-SCORE_CHANGED
-ROUND_FINISHED
-GAME_FINISHED
-```
-
-The current game state is stored for efficient access; events provide the log, replay,
-and the visualization.
+- `MATCH_STARTED`, `SET_STARTED`, `RALLY_STARTED`
+- `DECISION` — the acting agent's LLM decision (prompt, model, model params, raw +
+  parsed decision, athlete attributes, tokens, duration)
+- `TOUCH` / `FAULT` / `POINT` — the physics outcome
+- `SET_WON`, `COURT_SWITCH`, `MATCH_FINISHED`
 
 ## 8. Multi-user matches
 
-```text
-player A: create competition (choose game + round budget)   status=created
-          -> invite an online player B                        status=invited
-player B: accept (or decline)                                 status=accepted (or declined)
-both:     configure their own crew (models + parameters)      status=configuring
-both:     mark "ready"                                        status=ready
-          -> game auto-starts                                 status=running -> finished/cancelled
+```
+created → invited → accepted → (both ready) → running → finished/cancelled/declined
 ```
 
-- **1v1**: two teams, one player owns each team.
-- **Presence**: a user is "online" if authenticated with recent activity
-  (`last_seen_at` within a short window). Polled periodically.
-- **Authorization**: a player can read/write only their own team.
-- **Invitations and ready state** are stored on the competition and polled; WebSocket
-  push is out of scope.
+- 1v1: each user owns one Team of 2 players.
+- Presence (`last_seen_at`) tracks who is online (polled).
+- A player can read/write only their own team.
 
-## 9. Versioning
+## 9. Graphical simulation (independent)
 
-Every competition must reference an immutable game version.
-
-Changing the game definition creates a new version. A historical competition must never
-silently change because the game designer edited a template later.
+`app/web/static/js/volleyball_court.js` is a **self-contained module** that renders the
+court, the four players, and the ball, driven only by the event stream. It is designed
+to be replaced/upgraded later without touching the rest of the app.
 
 ## 10. Educational design principle
 
-The GUI should expose concepts progressively, but the pedagogical core is:
+The GUI must always answer: **what does this parameter do, and how will it change the
+player's behavior?** Both athlete attributes and LLM model parameters carry
+plain-language explanations. The interaction log is the primary learning surface.
 
-1. **configure every model parameter** of every crew member, and
-2. **read the interaction log** to trace how each decision was reached.
+## 11. Versioning
 
-Beginner view: role, what it does, which model, temperature, how many tokens.
-
-Advanced/teacher view: full parameter set (top-p, penalties, stop sequences, system
-prompt, response format), memory limits, tool permissions.
-
-The **Technical view** is always available as a toggle on every configuration screen.
-
-## 11. Execution visualization
-
-The default view during execution is a graphical diagram of the dialogue:
-
-- crew members and the referee appear as nodes;
-- messages, proposed actions, referee verdicts, and score changes appear as edges/annotations;
-- the diagram animates as events stream in (polling), and is replayable from the log;
-- the raw interaction log is an alternate view (not the default).
-
-The visualization is driven entirely by the event stream; it must not require a
-separate source of truth.
+Every match references an immutable game definition (the V3 volleyball rules). Match
+history must never change when the game rules are updated.

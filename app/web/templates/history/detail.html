@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Match #{{ match.id }} log — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Match #{{ match.id }} — interaction log</h1>
+<p class="muted">{{ match.difficulty }}</p>
+
+<div class="panel">
+  <h2>Final state</h2>
+  {% if match.final_state_json %}
+  <pre>{{ match.final_state_json | tojson(indent=2) }}</pre>
+  {% else %}
+  <p class="muted">Not finished.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>Events</h2>
+  <table>
+    <thead><tr><th>#</th><th>Type</th><th>Actor</th><th>Payload</th></tr></thead>
+    <tbody>
+      {% for e in events %}
+      <tr>
+        <td>{{ e.sequence_number }}</td>
+        <td><span class="badge">{{ e.event_type }}</span></td>
+        <td>{{ e.actor_id }}</td>
+        <td class="muted"><code>{{ e.payload_json | tojson }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

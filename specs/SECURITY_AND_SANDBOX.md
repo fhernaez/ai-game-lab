@@ -5,93 +5,41 @@ student-generated Python.
 
 ## Student-generated content may include
 
-- Markdown
-- plain text
-- structured configuration
-- prompts / system prompts
-- skill descriptions
-- crew instructions
-- model parameter values
+- plain text (team/player instructions, system prompts)
+- structured configuration (slider values, model references, model parameters)
 
 ## Student-generated content must not directly execute
 
-- Python
-- shell commands
-- SQL
-- Docker commands
-- arbitrary HTTP requests
-- filesystem operations
-
-The Technical view edits YAML/JSON/Markdown only. It is not a path to arbitrary code
-execution: YAML/JSON imports pass the same deterministic validation as the compiler,
-and Markdown is treated as inert instruction text.
+- Python, shell commands, SQL, Docker commands, arbitrary HTTP requests, filesystem ops
 
 ## LLM tools
 
-Crew members and the referee should receive explicit, allowlisted tools.
+Agents are LLM decision-makers, not tool users. They return structured decisions only;
+no database, shell, or network tools are granted.
 
-Example:
+## Decision validation
 
-```text
-read_game_state
-read_crew_state
-send_crew_message
-propose_action
-return_verdict      # referee only
-```
-
-No unrestricted database tool should be available to any model.
-
-## Referee verdict guard
-
-The referee is an LLM, so its output is untrusted. Every verdict must be:
-
-1. parsed as JSON and schema-validated;
-2. checked for boolean `accepted`;
-3. clamped to the scoring rules (min/max, valid scoring events);
-4. logged with its explanation.
-
-A malformed verdict is rejected and retried or treated as a no-score, never applied
-blindly. The referee must never be able to modify the database arbitrarily.
+Every LLM decision is schema-validated and clamped (power to `[0,1]`, target to the
+court bounds) before it reaches the physics engine. Invalid output falls back to a
+deterministic default — never crashes, never mutates state arbitrarily.
 
 ## Prompt injection
 
-Student instructions are data, not system instructions. The runtime must clearly
-separate:
+Student instructions (system prompts, team strategy) are data, not system instructions.
+The runtime clearly separates platform/rules text from player-authored text.
 
-- system/platform instructions
-- authoritative game rules
-- player-authored crew instructions
+## Match isolation
 
-Player-authored text must never be able to replace platform or referee instructions.
-
-## Competition isolation
-
-Each competition has:
-
-- isolated state
-- isolated crew context
-- isolated agent memory
-- explicit resource budgets
-
-A crew member must never be able to read the opposing crew's private memory or
-configuration (except what the game explicitly reveals).
-
-## Per-player ownership (authorization)
-
-- Each crew is owned by exactly one player.
-- A player may read and write only their own crew.
-- A player may not see the opponent's hidden parameters before the game reveals them.
+Each match has isolated state, isolated teams, and seeded RNG. A player can read/write
+only their own team; opponent attributes are hidden until revealed by the game.
 
 ## User administration (authorization)
 
-- Only `admin` users may create, edit, or delete accounts and change roles.
+- Only `admin` users may create/edit/delete accounts and change roles.
 - A user cannot delete their own account.
-- Deleting a user who still owns games, crews, or matches is blocked with a clear
-  message (or handled explicitly), never left to a raw database error.
+- Deleting a user who still owns teams/matches is blocked with a clear message.
 
 ## Secrets
 
-LLM API keys and database credentials must never be written into game blueprints or
-Markdown files. Store secrets in environment variables or a secure configuration
-mechanism.
+LLM API keys and database credentials are never written into the database or rendered
+blueprints. Store them in environment variables only.

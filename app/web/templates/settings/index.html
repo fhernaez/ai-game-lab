@@ -13,55 +13,24 @@
       <tr><th>Redis</th><td>{{ info.redis_url }}</td></tr>
     </tbody>
   </table>
-  <p class="muted">Secrets are never displayed. Providers (URL + API key) are defined in the
-  <code>LLM_PROVIDERS</code> environment variable; models are managed below.</p>
+  <p class="muted">Providers (URL + API key) are defined in the <code>LLM_PROVIDERS</code>
+  environment variable; the model list per provider is managed below.</p>
 </div>
 
 {% if is_admin %}
 <form method="post">
   <div class="panel">
     <h2>Models per provider (admin)</h2>
-    <p class="muted">List the model names offered by each provider, comma-separated.
-    <code>mock</code> is the deterministic offline provider used for testing.</p>
+    <p class="muted"><code>mock</code> is the deterministic offline provider used for
+    testing — it needs no URL or API key.</p>
     <table>
-      <thead><tr><th>Provider</th><th>Models</th></tr></thead>
+      <thead><tr><th>Provider</th><th>Models (comma-separated)</th></tr></thead>
       <tbody>
         {% for pid in providers %}
         <tr>
           <td><span class="badge">{{ pid }}</span></td>
           <td><input type="text" name="models_{{ pid }}" value="{{ provider_models.get(pid, []) | join(', ') }}"></td>
         </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <div class="panel">
-    <h2>Role defaults (admin)</h2>
-    <p class="muted">Default provider + model for each crew role when a member has no
-    explicit model. Members can still be overridden per member in the competition.</p>
-    <table>
-      <thead><tr><th>Role</th><th>Default model</th></tr></thead>
-      <tbody>
-        {% for role in roles %}
-        <tr>
-          <td>{{ role }}</td>
-          <td>
-            <select name="role_default_{{ role }}">
-              <option value="">(inherit global default)</option>
-              {% for pid in providers %}
-              <optgroup label="{{ pid }}">
-                {% for m in provider_models.get(pid, []) %}
-                {% set ref = pid ~ ':' ~ m %}
-                <option value="{{ ref }}" {% if role_defaults.get(role) == ref %}selected{% endif %}>{{ m }}</option>
-                {% endfor %}
-              </optgroup>
-              {% endfor %}
-            </select>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="2" class="muted">No games loaded, so no roles are known yet.</td></tr>
         {% endfor %}
       </tbody>
     </table>
