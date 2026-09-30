@@ -55,22 +55,28 @@ app/
 
 ## 3. The match engine
 
-`app/domain/volleyball/engine.py` runs a full match: for each set (best of 3), a loop of
-rallies; each rally is a serve (LLM decision + physics) followed by alternating 3-touch
-possessions until a fault/point. Every play emits `DECISION`, `TOUCH`, `FAULT`, `POINT`
-events that drive both the interaction log and the court animation.
+`app/domain/volleyball/engine.py` runs a time-based, message-driven match. Each rally is a
+serve (LLM message + decision) whose trajectory is computed by the deterministic core
+(`physics.py`): it adds a seeded random offset, computes the **flight time**, and lets the
+defending players **move to intercept** — whoever reaches the ball first plays the next
+touch. The core scores when the ball lands.
 
-`match_service.build_teams()` materializes the DB teams into the dicts the engine
-expects; `match_service._make_resolver()` builds the `resolve(model_ref) -> (provider,
-model)` callable from the LLM registry.
+- `physics.py` — trajectory (`resolve_shot`), `flight_time`, `reach_time`/`can_reach`.
+- `decisions.py` — the message + decision protocol and the shared-rally-context prompt.
+- `events.py` — `DECISION`, `TRAJECTORY`, `INTERCEPT`, `POINT`, etc.
+- Every agent's message is accumulated and shared to later agents in the rally.
+
+`match_service.build_teams()` materializes the DB teams into the dicts the engine expects;
+`match_service._make_resolver()` builds the `resolve(model_ref) -> (provider, model)`
+callable from the LLM registry.
 
 ## 4. Extending
 
 ### 4.1 Tune the physics
 
-Edit `app/domain/volleyball/physics.py` (serve/attack/receive/set formulas) and
-`attributes.py` (skill list, cost, difficulty budgets, archetypes). Keep everything
-deterministic (use the passed `rng`).
+Edit `app/domain/volleyball/physics.py` (`ball_speed`, `flight_time`, `reach_time`,
+`resolve_shot`, `offset_sigma`) and `attributes.py` (skill list, cost, difficulty budgets,
+archetypes). Keep everything deterministic (use the passed `rng`).
 
 ### 4.2 Add a provider
 

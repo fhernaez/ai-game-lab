@@ -38,8 +38,10 @@ Full setup and usage instructions:
 ## Features
 
 - **Beach volleyball engine**: a full match (best of 3 sets, 21/15 win-by-2) with
-  stochastic serve/flight/defense physics and volleyball rules (faults, possession,
-  court switch).
+  time-based trajectory physics (flight time, movement/interception) and volleyball rules
+  (faults, possession, court switch).
+- **Message-driven rallies**: each agent produces a natural-language message + a structured
+  decision; the messages are shared to all later agents in the rally as context.
 - **Athlete attributes**: 7 skills per player (Vertical Leap, Sand Speed, Dig & Serve
   Receive, Set Precision, Sniper Vision, Power Control, Spike Power) set with 1–10
   sliders, with a point-buy economy (Easy/Medium/Hard) and preset archetypes.

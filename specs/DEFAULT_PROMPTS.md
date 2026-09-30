@@ -18,18 +18,21 @@ shoot_accuracy_distance={{attributes.shoot_accuracy_distance}}
 shoot_accuracy_power={{attributes.shoot_accuracy_power}}
 shoot_max_power={{attributes.shoot_max_power}}
 
-Current match state:
+Current match state (ball position, flight time, score):
 {{match_state}}
 
-You must return a structured decision:
-{"action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
+What has happened this rally:
+{{rally_history}}
+
+Return a short message explaining what you will do, plus your structured decision:
+{"message": "...", "action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
 ```
 
 ## Serve
 
 ```text
-You are serving. Choose a power level and a target landing coordinate in the opponent's
-court. A hard serve is risky (less control); a soft serve is safer.
+You are serving. Explain your serve (power + target), then return it as a decision. A
+hard serve is risky (less control); a soft serve is safer.
 ```
 
 ## Attack (spike / place)

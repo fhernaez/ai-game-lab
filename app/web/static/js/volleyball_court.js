@@ -155,15 +155,19 @@
     let detail = "";
     if (ev.event_type === "DECISION") {
       const d = p.parsed || {};
-      detail = `${p.action_hint} → ${d.action} power=${Number(d.power || 0).toFixed(2)} target=[${(d.target || []).map(v => Number(v).toFixed(1)).join(', ')}] model=${p.model || ''}`;
-    } else if (ev.event_type === "TOUCH") {
-      detail = `${p.action || ''} → (${(p.ball?.x ?? 0).toFixed(1)}, ${(p.ball?.y ?? 0).toFixed(1)})${p.fault ? ` FAULT(${p.fault})` : ''}`;
+      detail = `${p.message || ''} <span class="muted">(${d.action} power=${Number(d.power || 0).toFixed(2)} target=[${(d.target || []).map(v => Number(v).toFixed(1)).join(', ')}])</span>`;
+      if (p.error) detail += `<br><span class="etype">⚠ ${p.error}</span>`;
+    } else if (ev.event_type === "TRAJECTORY") {
+      const to = p.ball || {};
+      detail = `ball → (${(to.x ?? 0).toFixed(1)}, ${(to.y ?? 0).toFixed(1)}) · ${p.flight_time}s · offset ${p.offset}`;
+    } else if (ev.event_type === "INTERCEPT") {
+      detail = `slot ${p.slot} reaches the ball in ${p.time}s`;
     } else if (ev.event_type === "POINT") {
       detail = `team ${p.team} scores (${p.reason || ''})`;
     } else if (ev.event_type === "SET_WON" || ev.event_type === "MATCH_FINISHED") {
       detail = ev.event_type;
     }
-    item.innerHTML = `<span class="etype">${ev.event_type}</span> <span class="muted">${ev.actor_id || ''}</span><br>${detail}`;
+    item.innerHTML = `<span class="etype">${ev.event_type}</span> <span class="muted">${ev.actor_id || ''}${p.team_name ? ' · ' + p.team_name : ''}</span><br>${detail}`;
     logEl.prepend(item);
     while (logEl.children.length > 150) logEl.removeChild(logEl.lastChild);
   }
@@ -173,12 +177,17 @@
     if (ev.event_type === "DECISION") {
       const actor = findPlayer(p.team_name, p.slot);
       if (actor) pulse(actor.el);
-    } else if (ev.event_type === "TOUCH") {
+    } else if (ev.event_type === "TRAJECTORY") {
       const actor = findPlayer(p.team_name, p.slot);
       const from = p.from_ball || { x: 4, y: 8, z: 0 };
       const to = p.ball || from;
-      if (actor) movePlayer(actor, to.x, to.y);
-      animateBall(from, to, 550);
+      const dur = Math.max(350, Math.min(2200, (p.flight_time || 0.5) * 900));
+      animateBall(from, to, dur);
+      // Move the acting player toward the origin of the shot.
+      if (actor) movePlayer(actor, from.x, from.y);
+    } else if (ev.event_type === "INTERCEPT") {
+      const actor = findPlayer(p.team_name, p.slot);
+      if (actor && p.at) movePlayer(actor, p.at[0], p.at[1]);
     } else if (ev.event_type === "POINT" && p.payload) {
       scoreboard = p.payload; updateScoreboard();
     } else if (ev.event_type === "SET_WON" && p.payload) {

@@ -1,7 +1,9 @@
 # Prompt Architecture
 
 The system composes prompts from controlled sections. The volleyball engine builds a
-prompt each time a player must make a decision (serve, dig, set, spike, place, block).
+prompt each time a player must make a decision (serve, dig, set, spike, place, block),
+and injects the **shared rally context** — the messages every agent has already produced
+this rally.
 
 ## Prompt layers
 
@@ -10,9 +12,10 @@ prompt each time a player must make a decision (serve, dig, set, spike, place, b
 2. Game Rules (authoritative; score, set, win condition)
 3. Your Role (which player you are, your athlete attributes)
 4. Team Strategy (player-authored instructions)
-5. Current Match State (ball, scores, sets, server, touches, possession)
-6. Available Actions + target coordinate space
-7. Output contract (return JSON decision)
+5. Current Match State (ball, flight time, scores, sets, server, touches)
+6. Shared Rally Context (what every agent has said/done this rally)
+7. Available Actions + target coordinate space
+8. Output contract (return a message + JSON decision)
 ```
 
 ## Example conceptual prompt
@@ -30,26 +33,32 @@ TEAM STRATEGY
 Serve deep and attack the far corners.
 
 CURRENT STATE
-Set 1, score 12-10, your team to serve, ball at (4.0, 0.0, 0.0).
+Set 1, score 12-10, your team to serve, ball at (4.0, 1.0, 0.0), flight time 1.1s.
+
+WHAT HAS HAPPENED THIS RALLY
+[Player A2] I serve with power to the far corner.
+[Player B1] I dig and keep the ball alive.
 
 AVAILABLE ACTIONS
 SERVE, DIG, SET, SPIKE, PLACE, BLOCK. Target coordinates X in 0..8, Y in 0..16.
 
-Return JSON: {"action": "...", "power": 0.0..1.0, "target": [x, y]}
+Return JSON: {"message": "...", "action": "...", "power": 0.0..1.0, "target": [x, y]}
 ```
 
 ## Important
 
-- Do not put authoritative rules *only* in the prompt; the physics/rules modules validate
+- Do not put authoritative rules *only* in the prompt; the deterministic core validates
   independently.
 - Student-authored text is clearly marked as player configuration and must not replace
   platform or rules text.
+- The shared rally context is informational: it tells an agent what happened, but never
+  grants it hidden information about the opponent beyond what the game reveals.
 
 ## Output protocol
 
 ```json
-{"action": "SERVE", "power": 0.8, "target": [7.2, 0.4]}
+{"message": "I spike hard to the open far corner", "action": "SPIKE", "power": 0.9, "target": [7.2, 14.5]}
 ```
 
-If a model returns invalid output, the engine falls back to a deterministic default and
-records the failure in the interaction log.
+If a model returns invalid output (or the LLM call fails), the engine falls back to a
+deterministic default decision and records the failure/error in the interaction log.

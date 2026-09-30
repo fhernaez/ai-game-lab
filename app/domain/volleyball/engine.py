@@ -1,4 +1,11 @@
-"""MatchEngine: runs a full beach-volleyball match (best of 3 sets)."""
+"""MatchEngine: a time-based, message-driven beach-volleyball match.
+
+Each rally is a serve followed by alternating possessions. On every hit the
+deterministic core adds a seeded random offset and computes the ball flight time;
+the defending team's players move to intercept, and whichever player reaches the
+ball first decides the next shot. The full rally is shared to every agent as
+context via their messages.
+"""
 
 import random
 
@@ -17,6 +24,10 @@ class MatchEngine:
         self.teams = teams
         self.resolve = resolve      # resolve(model_ref) -> (provider, model)
         self.rng = random.Random(seed)
+        self.positions = {}
+        for ti, team in enumerate(teams):
+            for p in team["players"]:
+                self.positions[(ti, p["slot"])] = self._home_position(ti, p["slot"])
 
     def run(self, should_stop=None):
         events = []
@@ -48,9 +59,7 @@ class MatchEngine:
             state.set_history.append({"set": _set, "points": list(state.set_points)})
             winner = 0 if state.set_points[0] > state.set_points[1] else 1
             state.sets_won[winner] += 1
-            events.append(
-                ev.make_event(ev.SET_WON, set=_set, winner=winner, payload=state.to_dict())
-            )
+            events.append(ev.make_event(ev.SET_WON, set=_set, winner=winner, payload=state.to_dict()))
             if state.sets_won[winner] >= 2:
                 state.winner = winner
 
@@ -62,103 +71,95 @@ class MatchEngine:
     def _play_rally(self, state, events, usages):
         server_team = state.server
         receiver_team = 1 - server_team
+        rally_history = []
 
         # SERVE
         server = self._pick_player(server_team, state)
-        decision, _ = self._decide(server_team, server, "SERVE", state, events, usages)
+        decision, _ = self._decide(server_team, server, "SERVE", state, events, usages, rally_history)
+        rally_history.append(f"[{server['name']}] {decision['message']}")
         target = self._clamp_to_half(decision["target"], 1 - state.sides[server_team])
-        from_ball = self._serve_origin(state.sides[server_team])
-        landing, fault = physics.resolve_serve(
-            server["attributes"], decision["power"], target, self.rng
-        )
+        origin = self._serve_origin(state.sides[server_team])
+        landing, fault, offset = physics.resolve_shot("SERVE", server["attributes"], decision["power"], target, self.rng)
         state.touches = 0
         if fault:
             state.ball = {"x": 4.0, "y": rules.NET_Y, "z": 2.43}
-            events.append(
-                ev.make_event(
-                    ev.TOUCH, action="SERVE", team=server_team,
-                    team_name=self.teams[server_team]["name"], slot=server["slot"],
-                    from_ball=from_ball, ball=state.ball, fault=fault,
-                )
-            )
+            state.flight_time = 0.0
+            self._trajectory(events, origin, state.ball, 0.0, offset, server_team, server["slot"])
             self._point(receiver_team, fault, state, events)
             return
         state.ball = {"x": landing[0], "y": landing[1], "z": 0.0}
-        events.append(
-            ev.make_event(
-                ev.TOUCH, action="SERVE", team=server_team,
-                team_name=self.teams[server_team]["name"], slot=server["slot"],
-                from_ball=from_ball, ball=state.ball, fault=None,
-            )
-        )
+        state.flight_time = physics.flight_time(origin, landing, "SERVE", decision["power"], server["attributes"])
+        self._trajectory(events, origin, state.ball, state.flight_time, offset, server_team, server["slot"])
 
-        # RALLY (alternating possessions)
+        # RALLY (alternating possessions until a ball lands or a fault)
         possession = receiver_team
         for _ in range(MAX_POSSESSIONS):
-            result = self._possession(possession, state, events, usages)
+            result = self._possession(possession, state, events, usages, rally_history)
+            if result == "landed":
+                self._point(1 - possession, "landed", state, events)
+                return
             if result != "over":
                 self._point(1 - possession, result, state, events)
                 return
             possession = 1 - possession
-        # Safety valve: award a point deterministically.
         self._point(possession, "rally_timeout", state, events)
 
-    def _possession(self, team_index, state, events, usages):
-        """One team's 3-touch sequence. Returns 'over' or a fault reason."""
+    def _possession(self, team_index, state, events, usages, rally_history):
+        """The defending team tries to return an incoming ball (up to 3 touches)."""
         team = self.teams[team_index]
         own_half = state.sides[team_index]
         opp_half = 1 - own_half
+        landing = (state.ball["x"], state.ball["y"])
+        t_flight = state.flight_time
 
-        # Touch 1: dig/receive
-        p1 = self._pick_player(team_index, state)
-        self._decide(team_index, p1, "DIG", state, events, usages)
-        distance = self.rng.uniform(0.5, 4.0)
-        if not physics.resolve_receive(p1["attributes"], distance, self.rng):
-            return "fault"
+        # Which defender reaches the ball before it lands?
+        candidates = []
+        for p in team["players"]:
+            pos = self.positions[(team_index, p["slot"])]
+            if physics.can_reach(pos, landing, p["attributes"], t_flight):
+                rt = physics.reach_time(physics.distance(pos, landing), p["attributes"])
+                candidates.append((rt, p))
+        if not candidates:
+            return "landed"
+        candidates.sort(key=lambda x: x[0])
+        receiver = candidates[0][1]
+        self.positions[(team_index, receiver["slot"])] = list(landing)
         events.append(
             ev.make_event(
-                ev.TOUCH, action="DIG", team=team_index, team_name=team["name"],
-                slot=p1["slot"], from_ball=state.ball, ball=state.ball,
+                ev.INTERCEPT, team=team_index, team_name=team["name"],
+                slot=receiver["slot"], at=landing, time=round(t_flight, 2),
             )
         )
 
-        # Touch 2: set
-        p2 = self._other_player(team_index, p1)
-        self._decide(team_index, p2, "SET", state, events, usages)
-        ok, _ = physics.resolve_set(p2["attributes"], self.rng.uniform(1.0, 5.0), self.rng)
-        if not ok:
-            return "fault"
-        set_ball = {"x": 4.0, "y": rules.NET_Y - 1.5 if own_half == 0 else rules.NET_Y + 1.5, "z": 2.0}
-        events.append(
-            ev.make_event(
-                ev.TOUCH, action="SET", team=team_index, team_name=team["name"],
-                slot=p2["slot"], from_ball=state.ball, ball=set_ball,
-            )
-        )
-        state.ball = set_ball
+        # Touch 1: receive
+        d1, _ = self._decide(team_index, receiver, "DIG", state, events, usages, rally_history)
+        rally_history.append(f"[{receiver['name']}] {d1['message']}")
+        state.touches += 1
 
-        # Touch 3: attack
-        attacker = p1 if self.rng.random() < 0.5 else p2
-        d3, _ = self._decide(team_index, attacker, "SPIKE", state, events, usages)
+        # Touch 2: set (the partner, always able to reach near the net)
+        setter = self._other_player(team_index, receiver)
+        d2, _ = self._decide(team_index, setter, "SET", state, events, usages, rally_history)
+        rally_history.append(f"[{setter['name']}] {d2['message']}")
+        state.touches += 1
+        set_point = [4.0, rules.NET_Y - 1.2 if own_half == 0 else rules.NET_Y + 1.2]
+        self.positions[(team_index, setter["slot"])] = list(set_point)
+
+        # Touch 3: attack over the net
+        attacker = receiver if self.rng.random() < 0.5 else setter
+        d3, _ = self._decide(team_index, attacker, "SPIKE", state, events, usages, rally_history)
+        rally_history.append(f"[{attacker['name']}] {d3['message']}")
+        state.touches += 1
         action = d3["action"] if d3["action"] in ("SPIKE", "PLACE") else "SPIKE"
         target = self._clamp_to_half(d3["target"], opp_half)
-        landing, fault = physics.resolve_attack(attacker["attributes"], d3["power"], target, self.rng)
+        landing3, fault, offset = physics.resolve_shot(action, attacker["attributes"], d3["power"], target, self.rng)
         if fault:
             state.ball = {"x": target[0], "y": rules.NET_Y, "z": 2.43}
-            events.append(
-                ev.make_event(
-                    ev.TOUCH, action=action, team=team_index, team_name=team["name"],
-                    slot=attacker["slot"], from_ball=set_ball, ball=state.ball, fault=fault,
-                )
-            )
+            state.flight_time = 0.0
+            self._trajectory(events, set_point, state.ball, 0.0, offset, team_index, attacker["slot"])
             return fault
-        state.ball = {"x": landing[0], "y": landing[1], "z": 0.0}
-        events.append(
-            ev.make_event(
-                ev.TOUCH, action=action, team=team_index, team_name=team["name"],
-                slot=attacker["slot"], from_ball=set_ball, ball=state.ball,
-            )
-        )
+        state.ball = {"x": landing3[0], "y": landing3[1], "z": 0.0}
+        state.flight_time = physics.flight_time(set_point, landing3, action, d3["power"], attacker["attributes"])
+        self._trajectory(events, set_point, state.ball, state.flight_time, offset, team_index, attacker["slot"])
         return "over"
 
     # -- helpers -----------------------------------------------------------
@@ -166,8 +167,15 @@ class MatchEngine:
         state.set_points[team_index] += 1
         state.touches = 0
         state.server = 1 - team_index
+        events.append(ev.make_event(ev.POINT, team=team_index, reason=reason, payload=state.to_dict()))
+
+    def _trajectory(self, events, from_ball, to_ball, flight_time, offset, team, slot):
         events.append(
-            ev.make_event(ev.POINT, team=team_index, reason=reason, payload=state.to_dict())
+            ev.make_event(
+                ev.TRAJECTORY, from_ball=from_ball, ball=to_ball,
+                flight_time=round(flight_time, 2), offset=round(offset, 2),
+                team=team, slot=slot,
+            )
         )
 
     def _pick_player(self, team_index, state):
@@ -179,6 +187,11 @@ class MatchEngine:
         team = self.teams[team_index]
         return next(p for p in team["players"] if p["slot"] != current["slot"])
 
+    def _home_position(self, team_index, slot):
+        if team_index == 0:
+            return [2.5, 3.0] if slot == 1 else [5.5, 5.0]
+        return [2.5, 13.0] if slot == 1 else [5.5, 11.0]
+
     def _clamp_to_half(self, target, half):
         x = max(0.5, min(7.5, target[0]))
         if half == 0:
@@ -187,27 +200,43 @@ class MatchEngine:
             y = max(target[1], rules.NET_Y + 0.2)
         return [x, y]
 
-    def _target_in_half(self, half, _=None):
+    def _target_in_half(self, half):
         if half == 0:
-            y = self.rng.uniform(0.0, rules.NET_Y - 0.5)
+            y = self.rng.uniform(0.5, rules.NET_Y - 0.5)
         else:
-            y = self.rng.uniform(rules.NET_Y + 0.5, rules.COURT_LENGTH)
+            y = self.rng.uniform(rules.NET_Y + 0.5, rules.COURT_LENGTH - 0.5)
         return [self.rng.uniform(0.5, 7.5), y]
 
     def _serve_origin(self, own_half):
-        return {"x": 4.0, "y": 1.0 if own_half == 0 else 15.0, "z": 0.0}
+        return [4.0, 1.0 if own_half == 0 else 15.0]
 
-    def _decide(self, team_index, player, action_hint, state, events, usages):
+    def _decide(self, team_index, player, action_hint, state, events, usages, rally_history):
         provider, model = self.resolve(player.get("model") or "")
         messages = decisions.build_decision_prompt(
-            self.teams[team_index]["name"], player, state, action_hint
+            self.teams[team_index]["name"], player, state, action_hint, rally_history
         )
         fallback = self._fallback_decision(action_hint, team_index, state)
-        result = provider.complete(
-            messages, model=model, mock_output=fallback, **player.get("params", {})
-        )
-        parsed = result.parse_json(default=fallback)
-        decision = decisions.parse_decision(parsed, fallback=fallback)
+
+        error = None
+        raw = ""
+        tokens_in = tokens_out = 0
+        model_used = model
+        try:
+            result = provider.complete(
+                messages, model=model, mock_output=fallback, **player.get("params", {})
+            )
+            parsed = result.parse_json(default=fallback)
+            decision = decisions.parse_decision(parsed, fallback=fallback)
+            raw = result.content
+            tokens_in = result.tokens_input
+            tokens_out = result.tokens_output
+            model_used = result.model or model
+        except Exception as exc:
+            # A single failed LLM call must not crash the match: fall back to the
+            # deterministic decision and record the error for the interaction log.
+            decision = dict(fallback)
+            error = str(exc)
+
         events.append(
             ev.make_event(
                 ev.DECISION,
@@ -216,33 +245,35 @@ class MatchEngine:
                 team_name=self.teams[team_index]["name"],
                 slot=player["slot"],
                 action_hint=action_hint,
+                message=decision.get("message", ""),
                 prompt=messages,
-                model=result.model or model,
+                model=model_used,
                 params=player.get("params", {}),
                 attributes=player["attributes"],
-                raw=result.content,
+                raw=raw,
                 parsed=decision,
-                tokens_input=result.tokens_input,
-                tokens_output=result.tokens_output,
+                error=error,
+                tokens_input=tokens_in,
+                tokens_output=tokens_out,
             )
         )
         usages.append(
-            {
-                "member_id": player["name"],
-                "tokens_input": result.tokens_input,
-                "tokens_output": result.tokens_output,
-                "model": result.model or model,
-            }
+            {"member_id": player["name"], "tokens_input": tokens_in, "tokens_output": tokens_out, "model": model_used}
         )
-        return decision, result
+        return decision, error
 
     def _fallback_decision(self, action_hint, team_index, state):
-        target = self._target_in_half(1 - state.sides[team_index], state.sides[team_index])
+        target = self._target_in_half(1 - state.sides[team_index])
         if action_hint == "SERVE":
-            return {"action": "SERVE", "power": self.rng.uniform(0.5, 0.9), "target": target}
+            return {"message": "I serve with power to the far corner.", "action": "SERVE",
+                    "power": self.rng.uniform(0.5, 0.9), "target": target}
         if action_hint == "DIG":
-            return {"action": "DIG", "power": 0.3, "target": [4.0, rules.NET_Y - 1.0]}
+            return {"message": "I dig and keep the ball alive.", "action": "DIG",
+                    "power": 0.3, "target": [4.0, rules.NET_Y - 1.0]}
         if action_hint == "SET":
-            return {"action": "SET", "power": 0.3, "target": [4.0, rules.NET_Y - 0.5]}
+            return {"message": "I set a clean ball to the net.", "action": "SET",
+                    "power": 0.3, "target": [4.0, rules.NET_Y - 0.5]}
         action = "SPIKE" if self.rng.random() < 0.6 else "PLACE"
-        return {"action": action, "power": self.rng.uniform(0.4, 1.0), "target": target}
+        verb = "spike hard" if action == "SPIKE" else "place a soft shot"
+        return {"message": f"I {verb} to the open court.", "action": action,
+                "power": self.rng.uniform(0.4, 1.0), "target": target}

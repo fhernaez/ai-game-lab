@@ -114,21 +114,20 @@ Open **Matchmaking → your match**, or **History → View**.
 
 ### 5.1 The graphical simulation
 
-A simple but accurate court animation shows the four players and the ball moving during
-each rally, with a live scoreboard (sets and current points). It is a separate, replaceable
-module.
+A simple but accurate court animation shows the four players and the ball: each shot is a
+**ball flight with a real trajectory and flight time**, and players **move to intercept**
+the ball — whoever reaches the ball first plays the next touch. A live scoreboard shows
+sets and current points. The animation is a separate, replaceable module.
 
 ### 5.2 The interaction log
 
-The sidebar records every event. For each **decision** you can inspect:
+The sidebar records every event, so you can trace *why* a point was won or lost:
 
-- which player acted and the situation;
-- the prompt sent, the model and model parameters used;
-- the raw response and the parsed decision (action, power, target);
-- the athlete attributes used;
-- the physics outcome (touch, fault, point).
-
-This is how you trace *why* a point was won or lost.
+- **Decision** — each agent's natural-language **message** (what it said it would do) and
+  its parsed decision (action, power, target), plus the model and model parameters used.
+- **Trajectory** — the ball flight (start, landing, flight time, random offset applied).
+- **Intercept** — which player reached the ball and when.
+- **Point / Fault** — the scoring outcome (landed, out, net).
 
 ### 5.3 Controls
 

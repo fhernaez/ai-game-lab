@@ -24,17 +24,21 @@ class OpenAICompatibleProvider(LLMProvider):
             "model": kwargs.get("model", self.model),
             "messages": messages,
         }
+        # Forward only provider-safe parameters. `response_format` is intentionally
+        # omitted (Ollama rejects a bare string like "json"); the prompt requests
+        # JSON and the parser falls back gracefully. Empty `stop` is skipped too.
         for key in (
             "temperature",
             "max_tokens",
             "top_p",
             "frequency_penalty",
             "presence_penalty",
-            "stop",
-            "response_format",
         ):
             if key in kwargs and kwargs[key] is not None:
                 payload[key] = kwargs[key]
+        stop = kwargs.get("stop")
+        if stop:
+            payload["stop"] = stop
 
         with httpx.Client(timeout=60) as client:
             resp = client.post(url, json=payload, headers=headers)

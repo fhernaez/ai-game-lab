@@ -92,15 +92,24 @@ MatchEngine
   for each set (best of 3):
     while set not won:
       RALLY:
-        SERVE      server's LLM chooses power + target -> physics resolves (net/out/in)
-        for each touch (max 3):
-          the acting player's LLM chooses action + target/power
-          physics resolves the touch using the athlete attributes
-        fault or point resolved -> POINT / FAULT event
+        SERVE      server's LLM -> message + {power, target}
+                   core adds seeded random offset, computes flight time -> TRAJECTORY
+        loop (until the ball lands):
+          each defender moves; if reach_time <= flight_time:
+            defender's LLM -> message + {action, power, target}
+            core: new trajectory from the intercept point (offset + flight time)
+            -> INTERCEPT + TRAJECTORY events
+          else:
+            ball lands -> core scores by position -> POINT
       set end -> SET_WON event
     court switch check (combined points % 7 == 0 or % 5 == 0)
   match end -> MATCH_FINISHED
 ```
+
+The rally is **message-driven**: every agent's natural-language message and decision is
+accumulated and shared to all later agents in the rally as context. The "core" is a
+deterministic component (seeded RNG) that adds the random trajectory component, computes
+flight time, simulates movement/interception, and scores — it is not an LLM.
 
 All randomness is seeded per match so runs are reproducible and replayable.
 
@@ -125,9 +134,12 @@ model dropdown from these lists, with `provider:model` references.
 Every meaningful transition emits an immutable event with the full trace:
 
 - `MATCH_STARTED`, `SET_STARTED`, `RALLY_STARTED`
-- `DECISION` — the acting agent's LLM decision (prompt, model, model params, raw +
-  parsed decision, athlete attributes, tokens, duration)
-- `TOUCH` / `FAULT` / `POINT` — the physics outcome
+- `DECISION` — the acting agent's message + LLM decision (prompt, model, model params,
+  raw + parsed decision, athlete attributes, tokens, optional error)
+- `TRAJECTORY` — the deterministic core's ball flight (`from_ball`, `ball`,
+  `flight_time`, `offset`)
+- `INTERCEPT` — which defender reached the ball and when
+- `POINT` / `FAULT` — the scoring outcome
 - `SET_WON`, `COURT_SWITCH`, `MATCH_FINISHED`
 
 ## 8. Multi-user matches

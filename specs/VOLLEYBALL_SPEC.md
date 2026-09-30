@@ -80,25 +80,29 @@ engine to `0.1 – 1.0` (`value = slider / 10`).
 | 6 | Power Control | `shoot_accuracy_power` | Keeps precision when hitting at max power; low values = hard spikes fly out. | 1 Wild Swinger → 10 Controlled Chaos |
 | 7 | Spike Power | `shoot_max_power` | Base attack velocity; higher velocity shrinks the opponent's reaction time. | 1 Soft Touches → 10 Cannon Arm |
 
-### 4.1 Performance equations
+### 4.1 The deterministic simulation core (trajectory + time)
 
-- **Service:** power + target `(X, Y)` → apply a random offset based on
-  `receiving_accuracy`; if `Z ≤ 2.43` at `Y = 8.0` → **net fault**; if landing outside
-  opponent bounds → **out fault**.
-- **Ball flight:** every pass/shot converts an input target into an actual landing zone
-  via a normal-distribution random offset scaled by the relevant skill modifier.
-- **Recovery/defense:** when the ball enters a team's zone, compute the distance between
-  the closest player and the landing zone; if `distance ≤ player_reach`, roll a
-  probability for a successful dig/receive (scaled by `receiving_accuracy`).
+On every hit, a deterministic core (seeded RNG — reproducible) performs these steps:
+
+1. **Random component** — applies a normal-distribution offset to the target landing
+   point, scaled by the relevant skill modifier and power (see §4.2).
+2. **Trajectory + flight time** — computes the ball flight time
+   `flight_time = distance / velocity`, where `velocity` grows with `shoot_max_power`.
+   A harder hit is faster and gives the opponent less time.
+3. **Movement / interception** — computes each defender's
+   `reach_time = distance / (1.5 + 5.5·transition_speed)`. If a defender's `reach_time ≤
+   flight_time`, that player reaches the ball before it lands and makes the next decision.
+4. **Scoring** — if no defender reaches the ball, it lands and the core scores by its
+   landing position (in bounds → point to the hitter; out/net → point to the opponent).
 
 ### 4.2 Trade-offs (behavior engine)
 
 - **Power vs accuracy:** a max-power attack tests `shoot_accuracy_power`; a low value
   applies a large offset to the landing zone → high out probability.
-- **Distance vs precision:** `passing_accuracy` / `shoot_accuracy_distance` degrade by a
-  factor proportional to the distance delta.
-- **Speed vs stamina:** a high `transition_speed` covers more ground but increases the
-  recovery window before the next optimal leap (`jumping_height`).
+- **Distance vs precision:** `passing_accuracy` / `shoot_accuracy_distance` increase the
+  offset radius with distance and power.
+- **Speed vs interception:** a high `transition_speed` shortens `reach_time`, letting the
+  player cover more ground before the ball lands.
 
 ---
 
@@ -112,18 +116,20 @@ environment (`LLM_PROVIDERS`), plus standard model parameters:
 - `max_tokens`
 - `top_p`
 - `frequency_penalty`, `presence_penalty`
-- `stop`, `response_format` (json)
+- `stop` (response format is always JSON, enforced by the prompt)
 
-The LLM receives the current game state and returns a **structured decision**:
+The LLM receives the current game state **plus the shared rally context** (the messages
+every agent has produced so far this rally) and returns a **message + structured
+decision**:
 
 ```json
-{"action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
+{"message": "I spike hard to the open far corner", "action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
 ```
 
-The decision is then executed by the physics engine using the athlete attributes. The
-**interaction log** records, for every decision: the prompt, the model, the model
-parameters, the raw response, the parsed decision, the athlete attributes used, and the
-physics outcome.
+The decision is then executed by the deterministic core using the athlete attributes.
+The **interaction log** records, for every decision: the message, the prompt, the model,
+the model parameters, the raw response, the parsed decision, the athlete attributes, and
+the physics outcome (trajectory, flight time, interception, fault).
 
 ### 5.1 Model parameter education
 

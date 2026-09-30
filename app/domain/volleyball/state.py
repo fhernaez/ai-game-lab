@@ -4,6 +4,7 @@
 class CourtState:
     def __init__(self):
         self.ball = {"x": 4.0, "y": 8.0, "z": 0.0}
+        self.flight_time = 0.0
         self.sets_won = [0, 0]
         self.set_points = [0, 0]
         self.current_set = 1
@@ -12,7 +13,7 @@ class CourtState:
         self.last_toucher = None
         self.set_history = []
         self.winner = None
-        self.sides = [0, 1]  # sides[team_index] = 0 or 1 (which half they defend)
+        self.sides = [0, 1]  # sides[team_index] = which half that team defends
 
     def combined_points(self):
         return self.set_points[0] + self.set_points[1]
@@ -25,4 +26,6 @@ class CourtState:
             "server": self.server,
             "set_history": self.set_history,
             "winner": self.winner,
+            "ball": self.ball,
+            "flight_time": self.flight_time,
         }
