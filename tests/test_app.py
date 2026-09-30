@@ -1,4 +1,5 @@
-from app.domain.volleyball import attributes, rules
+from app.domain.volleyball.body import parameters as attributes
+from app.domain.volleyball.core import rules
 from app.extensions import db
 from app.models import Event, Match, Player, Team, User
 
@@ -88,9 +89,9 @@ def test_team_config_saves(app, client):
     with app.app_context():
         p = db.session.get(Player, pid)
         cfg = p.configuration_json
-        assert cfg["attributes"]["jumping_height"] == 8
-        assert cfg["model"] == "mock:mock-model"
-        assert cfg["temperature"] == 0.5
+        assert cfg["body"]["parameters"]["jumping_height"] == 8
+        assert cfg["brain"]["model"] == "mock:mock-model"
+        assert cfg["brain"]["params"]["temperature"] == 0.5
 
 
 def test_full_match_flow(app, client):
@@ -161,7 +162,7 @@ def test_start_match_does_not_reenqueue(app):
 
 
 def test_engine_streams_events(app):
-    from app.domain.volleyball.attributes import default_attributes
+    from app.domain.volleyball.body.parameters import default_parameters
     from app.domain.volleyball.engine import MatchEngine
     from app.infrastructure.llm.mock import MockLLMProvider
 
@@ -176,10 +177,8 @@ def test_engine_streams_events(app):
             {
                 "slot": s,
                 "name": f"P{s}",
-                "attributes": {k: 5 for k in default_attributes()},
-                "model": "",
-                "params": {},
-                "instructions": "",
+                "attributes": {k: 5 for k in default_parameters()},
+                "brain": {},
             }
             for s in (1, 2)
         ]
@@ -192,3 +191,220 @@ def test_engine_streams_events(app):
     assert collected[0]["event_type"] == "MATCH_STARTED"
     assert any(e["event_type"] == "TRAJECTORY" for e in collected)
     assert any(e["event_type"] == "MATCH_FINISHED" for e in collected)
+
+
+def test_engine_movement_and_faults(app):
+    from app.domain.volleyball.body.parameters import default_parameters
+    from app.domain.volleyball.engine import MatchEngine
+    from app.infrastructure.llm.mock import MockLLMProvider
+
+    def resolve(ref):
+        return MockLLMProvider(), "mock-model"
+
+    teams = []
+    for ti in range(2):
+        players = [
+            {"slot": s, "name": f"P{s}", "attributes": {k: 5 for k in default_parameters()}, "brain": {}}
+            for s in (1, 2)
+        ]
+        teams.append({"name": f"T{ti}", "instructions": "", "players": players})
+
+    engine = MatchEngine(teams, resolve, seed=7)
+    events, state, _ = engine.run()
+
+    # movement never crosses the net band
+    for ev in events:
+        if ev["event_type"] == "DECISION":
+            y = ev["payload"]["move_to"][1]
+            assert not (7.8 < y < 8.2), f"move_to crossed the net: {ev['payload']['move_to']}"
+
+    # the serve starts outside the court
+    serve_origins = [
+        ev["payload"]["from_ball"]
+        for ev in events
+        if ev["event_type"] == "TRAJECTORY" and ev["payload"].get("slot") is not None
+    ]
+    assert any(fb[1] < 0 or fb[1] > 16 for fb in serve_origins)
+
+    # block events and fault reasons are present
+    assert any(ev["event_type"] == "BLOCK" for ev in events)
+    reasons = {ev["payload"].get("reason") for ev in events if ev["event_type"] == "POINT"}
+    assert "landed" in reasons
+
+
+# ---------------------------------------------------------------------------
+# Core configuration (admin-editable knobs)
+# ---------------------------------------------------------------------------
+
+def test_core_effective_and_clamp(app):
+    from app.application import settings_service
+
+    with app.app_context():
+        assert settings_service.get_effective_core()["net_height"] == 2.43
+        settings_service.set_core_overrides({"net_height": "5"}, {"base_ball_speed": "99"})
+        eff = settings_service.get_effective_core()
+        assert eff["net_height"] == 2.6  # clamped to max
+        assert eff["base_ball_speed"] == 30.0  # clamped to max
+        settings_service.reset_core()
+        assert settings_service.get_effective_core()["net_height"] == 2.43
+
+
+def test_rules_honor_core_override():
+    from app.domain.volleyball.core import defaults, rules
+
+    core = defaults.effective_core({"set_target_1": 10})
+    assert rules.is_set_won(10, 8, 1, core) is True
+    assert rules.is_set_won(10, 9, 1, core) is False  # no 2-point margin
+    assert rules.set_target(1, core) == 10
+    assert rules.net_y({"court_length": 20.0}) == 10.0
+
+
+def test_physics_honor_core_override():
+    from app.domain.volleyball.core import defaults, physics
+
+    core = defaults.effective_core({"base_ball_speed": 20.0, "power_speed_bonus": 0.0})
+    attrs = {"shoot_max_power": 1}
+    assert physics.ball_speed("SET", 0.5, attrs, core) == 10.0
+
+
+def test_core_admin_edit_and_restore(app, auth_client):
+    from app.application import settings_service
+
+    resp = auth_client.post(
+        "/settings/core",
+        data={"knob_net_height": "2.5", "knob_set_target_1": "20", "referee_md": "custom referee"},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    with app.app_context():
+        eff = settings_service.get_effective_core()
+        assert eff["net_height"] == 2.5
+        assert eff["set_target_1"] == 20
+        assert settings_service.get_referee_md() == "custom referee"
+
+    auth_client.post("/settings/core", data={"restore": "1"}, follow_redirects=True)
+    with app.app_context():
+        assert settings_service.get_effective_core()["net_height"] == 2.43
+        assert settings_service.get_referee_md() != "custom referee"
+
+
+def test_core_readonly_for_student(app, client):
+    with app.app_context():
+        _make_user("bob")
+    client.post("/auth/login", data={"username": "bob", "password": "secret"})
+    resp = client.get("/settings/core")
+    assert resp.status_code == 200
+    assert b"read-only access" in resp.data
+
+
+def test_match_snapshots_core_config(app, client):
+    with app.app_context():
+        _make_user("bob")
+        _make_user("alice")
+    client.post("/auth/login", data={"username": "bob", "password": "secret"})
+    client.post("/matchmaking/create", data={"difficulty": "easy"})
+    with app.app_context():
+        mid = Match.query.order_by(Match.id.desc()).first().id
+    client.post(f"/matchmaking/{mid}/invite", data={"username": "alice"})
+    client.get("/auth/logout")
+    client.post("/auth/login", data={"username": "alice", "password": "secret"})
+    client.post(f"/matchmaking/{mid}/accept")
+    client.post(f"/matches/{mid}/ready")
+    client.get("/auth/logout")
+    client.post("/auth/login", data={"username": "bob", "password": "secret"})
+    client.post(f"/matches/{mid}/ready")
+    with app.app_context():
+        match = db.session.get(Match, mid)
+        assert match.status == "finished"
+        assert match.core_config_json is not None
+        assert match.core_config_json["net_height"] == 2.43
+
+
+# ---------------------------------------------------------------------------
+# Advanced view (read-only agent files) + what/effect
+# ---------------------------------------------------------------------------
+
+def test_advanced_view_renders(app, client):
+    with app.app_context():
+        _make_user("bob")
+        _make_user("alice")
+    client.post("/auth/login", data={"username": "bob", "password": "secret"})
+    client.post("/matchmaking/create", data={"difficulty": "medium"})
+    with app.app_context():
+        mid = Match.query.order_by(Match.id.desc()).first().id
+    resp = client.get(f"/matches/{mid}/advanced")
+    assert resp.status_code == 200
+    assert b"agent.md" in resp.data
+    assert b"body.yaml" in resp.data
+    assert b"tools.yaml" in resp.data
+
+
+def test_agent_and_core_file_render():
+    from app.domain.volleyball.brain import render as br
+    from app.domain.volleyball.core import render as cr
+
+    brain = {
+        "persona": "p",
+        "goal": "g",
+        "task": "t",
+        "model": "m",
+        "params": {"temperature": 0.7, "max_tokens": 256, "top_p": 1.0,
+                   "frequency_penalty": 0.0, "presence_penalty": 0.0},
+    }
+    md = br.render_agent_md(brain)
+    assert "p" in md and "g" in md
+
+    skills_md = br.render_skills_md([{"id": "deep_defense", "title": "Deep defense", "what": "w", "effect": "e"}])
+    assert "Deep defense" in skills_md and "e" in skills_md
+
+    tools_yaml = br.render_tools_yaml(["spike"])
+    assert "spike" in tools_yaml and "SPIKE" in tools_yaml
+
+    body_yaml = br.render_body_yaml({"actuators": ["spike"], "parameters": {"jumping_height": 8}})
+    assert "jumping_height" in body_yaml
+
+    rules_yaml = cr.render_rules_yaml()
+    assert "net_height" in rules_yaml and "net_y" in rules_yaml
+    physics_yaml = cr.render_physics_yaml()
+    assert "base_ball_speed" in physics_yaml
+    assert "referee" in cr.render_referee_md().lower()
+
+
+def test_brain_permissions_and_prompt():
+    from app.domain.volleyball.brain import decision, tools
+    from app.domain.volleyball.core.world import CourtState
+
+    assert tools.allowed_actions(None) == []
+    assert tools.allowed_actions(["spike"]) == ["SPIKE"]
+
+    brain = {
+        "persona": "P",
+        "goal": "G",
+        "tools": ["spike"],
+        "skills": [{"id": "deep_defense", "title": "Deep defense", "what": "w", "effect": "e"}],
+        "sensors": ["ball"],
+        "model": "m",
+        "params": {},
+    }
+    msgs = decision.build_decision_prompt(brain, "T", "Player 1", 1, CourtState(), "SERVE", [], 0)
+    user = msgs[1]["content"]
+    assert "Deep defense" in user
+    assert "spike" in user
+    assert "P" in user and "G" in user
+
+
+def test_what_effect_present():
+    from app.domain.volleyball.body import actuators, parameters
+    from app.domain.volleyball.brain import skills, tools
+    from app.domain.volleyball.core import defaults
+
+    for key, spec in parameters.ATTRIBUTES.items():
+        assert spec["what"] and spec["effect"], key
+    for key, spec in actuators.ACTUATORS.items():
+        assert spec["what"] and spec["effect"], key
+    for key, spec in tools.TOOLS.items():
+        assert spec["what"] and spec["effect"], key
+    for skill in skills.DEFAULT_SKILLS:
+        assert skill["what"] and skill["effect"], skill["id"]
+    for key, spec in defaults.KNOBS.items():
+        assert spec["what"] and spec["effect"], key

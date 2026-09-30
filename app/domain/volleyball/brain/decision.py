@@ -1,4 +1,7 @@
-"""Structured decision protocol: each agent returns a message, a ball hit, and its own movement."""
+"""The brain's decision protocol: message + ball hit + own movement."""
+
+from . import skills, tools
+from .sensors import render_sensors
 
 ACTIONS = ["SERVE", "DIG", "SET", "SPIKE", "PLACE", "BLOCK"]
 
@@ -64,16 +67,17 @@ def _point(value, default):
     return [x, y]
 
 
-def build_decision_prompt(team_name, player, state, action_hint, rally_history):
-    """Assemble the prompt for one player's decision, with shared rally context."""
-    attrs = player["attributes"]
-    attr_lines = "\n".join(
-        f"  {k}: {attrs.get(k, 1)}/10" for k in
-        ["jumping_height", "transition_speed", "receiving_accuracy",
-         "passing_accuracy", "shoot_accuracy_distance",
-         "shoot_accuracy_power", "shoot_max_power"]
-    )
-    history = "\n".join(rally_history[-10:]) or "(start of rally)"
+def build_decision_prompt(brain, team_name, player_name, slot, state, action_hint, rally_history, team_index=None):
+    """Assemble the brain's prompt from persona/goal/task/skills/tools/sensors."""
+    tool_list = ", ".join(brain.get("tools") or list(tools.TOOL_KEYS))
+    skill_text = skills.render_skills(brain.get("skills") or skills.load_default_skills())
+    sensor_text = render_sensors(brain.get("sensors"))
+
+    half_line = ""
+    if team_index is not None:
+        own_half = state.sides[team_index]
+        side = "LEFT (y 0..8)" if own_half == 0 else "RIGHT (y 8..16)"
+        half_line = f"YOUR HALF: you are on the {side}. Your move_to must stay inside your own half.\n\n"
 
     system = (
         "You are an AI beach-volleyball player. Return a JSON object with a short "
@@ -83,12 +87,15 @@ def build_decision_prompt(team_name, player, state, action_hint, rally_history):
     user = "\n\n".join(
         [
             f"TEAM: {team_name}",
-            f"YOU ARE: {player['name']} (slot {player['slot']})",
-            "YOUR ATHLETE ATTRIBUTES (1..10):\n" + attr_lines,
-            "TEAM STRATEGY:\n" + player.get("instructions", ""),
+            f"YOU ARE: {player_name} (slot {slot})",
+            half_line + f"PERSONA\n{brain.get('persona', '')}",
+            f"GOAL\n{brain.get('goal', '')}",
+            f"TASK\n{action_hint}",
+            f"SKILLS (what you know)\n{skill_text}",
+            f"TOOLS (what you can do)\n{tool_list}",
+            f"SENSORS (what you can see)\n{sensor_text}",
             "CURRENT MATCH STATE:\n" + _render_state(state),
-            "WHAT HAS HAPPENED THIS RALLY:\n" + history,
-            f"EXPECTED ACTION: {action_hint}",
+            "WHAT HAS HAPPENED THIS RALLY:\n" + ("\n".join(rally_history[-10:]) or "(start of rally)"),
             'Return JSON: {"message": "...", "action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", '
             '"power": 0.0..1.0, "target": [x, y], "move_to": [x, y], "move_speed": 0.0..1.0}',
         ]

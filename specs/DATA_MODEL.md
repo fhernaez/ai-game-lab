@@ -42,31 +42,54 @@ Player
 - created_at
 ```
 
-`configuration_json`:
+`configuration_json` holds the **brain** and **body** of the agent (see
+`AGENT_ARCHITECTURE.md`):
 
 ```text
 {
   "name": "Player 1",
-  "attributes": {            # sliders 1-10 (engine maps to 0.1-1.0)
-    "jumping_height": 5,
-    "transition_speed": 5,
-    "receiving_accuracy": 5,
-    "passing_accuracy": 5,
-    "shoot_accuracy_distance": 5,
-    "shoot_accuracy_power": 5,
-    "shoot_max_power": 5
+
+  "brain": {
+    "persona": "A patient defender who reads the game.",
+    "goal": "Keep the ball in play and set up the partner.",
+    "task": "defend and pass",
+    "skills": [
+      {"id": "deep_defense", "title": "Deep defense",
+       "what": "Drop back early and read the hitter.",
+       "effect": "Lets you dig hard, deep attacks."}
+    ],
+    "tools": ["serve", "dig", "set", "spike", "place", "block"],
+    "sensors": ["ball", "own_half", "own_attributes", "rally_history", "score"],
+    "memory": {"type": "short_term", "size": 8},
+    "model": "ollama:llama3.2",
+    "params": {
+      "temperature": 0.7,
+      "max_tokens": 256,
+      "top_p": 1.0,
+      "frequency_penalty": 0.0,
+      "presence_penalty": 0.0
+    }
   },
-  "model": "ollama:llama3.2",   # provider:model
-  "temperature": 0.7,
-  "max_tokens": 256,
-  "top_p": 1.0,
-  "frequency_penalty": 0.0,
-  "presence_penalty": 0.0,
-  "stop": [],
-  "response_format": "json",
-  "instructions": ""           # system prompt / strategy
+
+  "body": {
+    "actuators": ["run", "jump", "serve", "pass", "set", "spike", "place", "block", "dig"],
+    "parameters": {
+      "jumping_height": 5,
+      "transition_speed": 5,
+      "receiving_accuracy": 5,
+      "passing_accuracy": 5,
+      "shoot_accuracy_distance": 5,
+      "shoot_accuracy_power": 5,
+      "shoot_max_power": 5
+    }
+  }
 }
 ```
+
+The `what`/`effect` strings for the 7 body parameters are the auto-explainable metadata
+shown in the GUI. They live once in the central body registry
+(`body/parameters.py`), not duplicated per player. The point-buy cost is computed from
+`body.parameters[*]` (each slider point above 1 costs 1) at validation time (not stored).
 
 ## Match
 
@@ -107,12 +130,13 @@ Event
 ```text
 AppSetting
 - id
-- key              # "provider_models", "default_model"
+- key              # "provider_models", "default_model",
+                   #   "core_rules", "core_physics", "core_referee"
 - value            # JSON
 ```
 
-Used for admin-editable settings: the model list per provider and the global default
-model.
+Used for admin-editable settings: the model list per provider, the global default model,
+and the three **core** files (rules, physics, referee) that the admin can edit.
 
 ---
 

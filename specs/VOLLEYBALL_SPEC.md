@@ -56,11 +56,15 @@ tactics; the **body** (attributes) determines whether the execution succeeds.
 - **Faults (ball goes to the opponent + point):**
   - **Net fault** — ball fails to clear the net (Z ≤ 2.43 at Y = 8.0) on a return.
   - **Out fault** — landing X or Y outside the opponent's boundaries.
-  - **Illegal attack** — open-hand tip ("dink") over the net is a fault; an open-hand
-    set sent over the net requires shoulders strictly parallel to the trajectory,
-    otherwise it is an illegal attack fault.
-  - **Net touch** — a player touching the net is a fault.
-  - **4 touches** — a team touching the ball more than 3 times.
+  - **Illegal attack** — open-hand tip ("dink") over the net is a fault (modeled as a
+    fault risk on the `PLACE` action); an open-hand set sent over the net is illegal.
+  - **Net touch** — a player touching the net is a fault (risk grows with low jumping
+    height near the net).
+  - **4 touches** — a team touching the ball more than 3 times (guarded in the core).
+
+All of the above are implemented by the deterministic core (`app/domain/volleyball/`).
+A **block** is attempted when the incoming ball is a fast attack; a clean block scores a
+point, a block touch counts as touch #1, and a block miss lets the ball continue.
 
 ---
 
@@ -208,7 +212,7 @@ the database with their full interaction log).
 
 The match view renders a **simple but accurate** animation of the four players and the
 ball moving on the court. This is an **independent entity** — a self-contained module
-(`app/web/static/js/volleyball_court.js`) driven only by the event stream, so it can be
+(`app/web/static/js/sim/`) driven only by the event stream, so it can be
 customized and enhanced later without affecting the rest of the app.
 
 Requirements:
@@ -224,3 +228,31 @@ Requirements:
 - A visible "running…" indicator while the worker is executing.
 - The animation polls the event stream live (events are persisted incrementally by the
   worker) and is replayable from the stored event log.
+
+---
+
+## 9. Agent architecture & blueprint files
+
+A player is an **embodied agent** (brain / body / core). The full model — persona, goal,
+task, skills, tools, sensors, actuators, memory, and the `what`+`effect` explainability
+rule — is defined in **`AGENT_ARCHITECTURE.md`**.
+
+In the **Advanced view**, the advanced student edits these files for their own agents:
+
+```text
+agent.md      persona · goal · task
+skills/*.md   playbooks
+tools.yaml    brain → body connectors (and permissions)
+body.yaml     actuators + the 7 parameters
+```
+
+and can read (but not modify) the core files:
+
+```text
+core/rules.yaml
+core/physics.yaml
+core/referee.md
+```
+
+The admin can edit the core files (with a caution legend on critical parameters and a
+"restore defaults" action).

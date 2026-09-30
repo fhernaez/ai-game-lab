@@ -1,4 +1,4 @@
-"""Court state and match scoreboard."""
+"""The world / environment: court state and scoreboard."""
 
 
 class CourtState:

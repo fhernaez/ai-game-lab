@@ -2,54 +2,43 @@
 
 ## Goal
 
-Teach how LLMs work through a single, deeply-simulated game (beach volleyball). A match
-is the outcome of many small decisions by AI agents, each combining a **mind** (LLM) and
-a **body** (athlete attributes).
+Teach how LLMs work by building a beach-volleyball team of AI agents. A player is a
+**brain** (LLM) + **body** (moves and parameters) inside a **world** (rules + physics).
 
-The interface must always make visible:
+The interface must always answer two questions for every element:
 
-1. **what each parameter does**, and
-2. **how it changes the player's behavior** — both for athlete attributes and for LLM
-   model parameters.
+1. **What is this?** (a short definition)
+2. **What effect does it have?** (what it changes on the player or the game)
 
-## The core mental model: mind vs body
+These two (`what` and `effect`) are shown together everywhere.
 
-- **The mind (LLM)** chooses *what* to do — serve to the deep corner, set to the net,
-  spike hard, or place soft. Its behavior is shaped by model + model parameters.
-- **The body (attributes)** determines *whether it works* — whether the spike clears the
-  net, whether the dig stays in bounds, whether the player reaches the ball in time.
+## The core mental model: brain vs body vs world
 
-A student learns by changing one knob at a time and reading the interaction log to see
-the causal chain: decision → execution → outcome.
+- **Brain** — decides *what* to do, using its **tools** (what it can do) and its
+  **skills** (what it knows).
+- **Body** — executes it with **actuators** (moves) and **parameters** (quality).
+- **World / core** — applies the rules and physics, and scores.
 
 ## Concept progression
 
-1. **The agent** — a team has two players; each is an LLM with a role.
-2. **Athlete attributes** — what each of the 7 skills does (jump, speed, dig, set,
-   aim, power control, spike power).
-3. **LLM model parameters** — temperature, top-p, penalties, max tokens, system prompt.
-4. **Point-buy economy** — budgets and trade-offs; specialization vs balance.
-5. **The physics** — how serve/flight/defense convert decisions + attributes into
-   outcomes (stochastic, but seeded and readable).
-6. **The match** — sets, points, faults, court switch, best-of-3.
-7. **The interaction log** — reading the full trace to understand *why* a point was won
-   or lost.
-8. **Experimentation** — compare models, parameters, and attribute allocations.
+1. **The agent** — a team has two players; each is an LLM with a persona, goal, and task.
+2. **Tools** — what the player *can* do (serve, pass, set, spike, block, dig). Tools are
+   the connectors from the brain to the body.
+3. **Skills** — what the player *knows* (the playbook: when and how to use its tools).
+4. **Body parameters** — the 7 qualities (jump, speed, dig, set, aim, power control,
+   spike power), each with a `what` and an `effect`.
+5. **The world** — rules and physics (deterministic, seeded) that turn decisions into
+   outcomes.
+6. **Point-buy economy** — budgets and trade-offs; specialization vs balance.
+7. **The interaction log** — reading the full trace (message, tool, skill, parameters,
+   outcome) to understand *why* a point was won or lost.
+8. **Advanced view** — edit the agent's files (persona, skills, tools, body) and read the
+   core files.
 
 ## Transparency — the interaction log
 
-For every play, the UI allows the student to inspect:
+For every play the student can inspect: which player acted, the message, the tool used,
+the skill (if any), the parameters, the raw + parsed decision, and the physics outcome.
+The graphical simulation shows the players and ball; the log shows the reasoning.
 
-- which player acted, and in what situation;
-- the prompt sent to the LLM;
-- the model and model parameters used;
-- the raw response and the parsed decision (action, target, power);
-- the athlete attributes used;
-- the physics outcome (in bounds, out, net, dig success);
-- tokens and duration.
-
-During the match, the graphical simulation shows the players and ball moving; the
-interaction log records the reasoning behind each movement.
-
-Do not expose hidden chain-of-thought. Show concise decisions, structured inputs/outputs,
-and observable events.
+Do not expose hidden chain-of-thought. Show concise decisions and observable events.

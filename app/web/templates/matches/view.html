@@ -69,7 +69,20 @@
   <div class="panel" id="court">
     <div id="match-status" class="muted" style="margin-bottom: 0.5rem;"></div>
     <div class="scoreboard" id="scoreboard"></div>
-    <svg id="court-svg" viewBox="0 0 880 460" preserveAspectRatio="xMidYMid meet"></svg>
+    <canvas id="court-canvas"></canvas>
+    <div class="sim-controls">
+      <button id="sim-play" class="btn btn-sm" type="button">Play</button>
+      <button id="sim-step-back" class="btn btn-secondary btn-sm" type="button">−10s</button>
+      <button id="sim-step-fwd" class="btn btn-secondary btn-sm" type="button">+10s</button>
+      <select id="sim-speed" class="btn-sm">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+        <option value="4">4×</option>
+      </select>
+      <input id="sim-scrub" type="range" min="0" max="1000" value="0" step="1">
+      <span id="sim-time" class="muted">0:00 / 0:00</span>
+    </div>
   </div>
   <div class="sidebar">
     <h2 style="margin-top:0;">Interaction log</h2>
@@ -77,7 +90,7 @@
   </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/volleyball_court.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/sim/main.js') }}"></script>
 <script>
   // Live status/ready polling: reload the page when the match state changes so the
   // controls and the simulation stay in sync between both players' sessions.

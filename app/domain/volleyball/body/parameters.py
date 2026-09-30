@@ -1,41 +1,54 @@
-"""Athlete attributes: the 7 skills, slider mapping, point-buy, difficulty, archetypes."""
+"""The body: 7 parameters (sliders 1..10) + point-buy + archetypes + what/effect."""
 
-ATTRIBUTE_KEYS = [
-    "jumping_height",
-    "transition_speed",
-    "receiving_accuracy",
-    "passing_accuracy",
-    "shoot_accuracy_distance",
-    "shoot_accuracy_power",
-    "shoot_max_power",
-]
+# Each parameter carries `label` (UI), `what` (definition) and `effect` (what it changes).
+ATTRIBUTES = {
+    "jumping_height": {
+        "label": "Vertical Leap",
+        "what": "How high the player jumps at the net.",
+        "effect": "Higher jump lets you block hard spikes and hit down over the block; lower jump risks net touches on hard swings.",
+    },
+    "transition_speed": {
+        "label": "Sand Speed",
+        "what": "How fast the player sprints across the sand.",
+        "effect": "Faster movement shortens reach time, so the player covers more court and digs more balls.",
+    },
+    "receiving_accuracy": {
+        "label": "Dig & Serve Receive",
+        "what": "How cleanly the player controls serves and hard attacks on the first touch.",
+        "effect": "Higher accuracy keeps first touches in play; lower accuracy shanks balls out or gives the opponent an easy attack.",
+    },
+    "passing_accuracy": {
+        "label": "Set Precision",
+        "what": "How accurately the player sets the ball to the partner.",
+        "effect": "Higher accuracy delivers the ball near the net for a clean attack; lower accuracy forces the partner to reach.",
+    },
+    "shoot_accuracy_distance": {
+        "label": "Sniper Vision",
+        "what": "How precisely the player aims soft shots at open sand.",
+        "effect": "Higher precision places shots in empty areas; lower precision drifts shots and lands them out.",
+    },
+    "shoot_accuracy_power": {
+        "label": "Power Control",
+        "what": "How well the player keeps control when hitting at full power.",
+        "effect": "Higher control keeps hard hits in bounds; lower control makes hard hits fly out.",
+    },
+    "shoot_max_power": {
+        "label": "Spike Power",
+        "what": "How hard the player can hit the ball.",
+        "effect": "Harder hits travel faster (less reaction time for the opponent) but are harder to control.",
+    },
+}
 
-# Slider 1..10 -> float 0.1..1.0
+ATTRIBUTE_KEYS = list(ATTRIBUTES.keys())
+ATTRIBUTE_LABELS = {k: v["label"] for k, v in ATTRIBUTES.items()}
+ATTRIBUTE_DESCRIPTIONS = {k: v["what"] for k, v in ATTRIBUTES.items()}
+ATTRIBUTE_EFFECTS = {k: v["effect"] for k, v in ATTRIBUTES.items()}
+
 SLIDER_MIN = 1
 SLIDER_MAX = 10
 
 DIFFICULTY_BUDGETS = {"easy": 45, "medium": 25, "hard": 12}
 AI_BUDGETS = {"easy": 12, "medium": 25, "hard": 32}
-
-ATTRIBUTE_LABELS = {
-    "jumping_height": "Vertical Leap",
-    "transition_speed": "Sand Speed",
-    "receiving_accuracy": "Dig & Serve Receive",
-    "passing_accuracy": "Set Precision",
-    "shoot_accuracy_distance": "Sniper Vision",
-    "shoot_accuracy_power": "Power Control",
-    "shoot_max_power": "Spike Power",
-}
-
-ATTRIBUTE_DESCRIPTIONS = {
-    "jumping_height": "How high the player jumps at the net — blocks spikes and hits downhill over the block.",
-    "transition_speed": "How fast the player sprints across the sand to intercept the ball.",
-    "receiving_accuracy": "How cleanly the player controls incoming serves and hard spikes on the first touch.",
-    "passing_accuracy": "How accurately the player passes to the partner (diminishes with distance).",
-    "shoot_accuracy_distance": "How precisely the player aims soft shots at empty sand on the far side.",
-    "shoot_accuracy_power": "How well the player keeps control when hitting at maximum power.",
-    "shoot_max_power": "The sheer velocity of attacks — less reaction time for the opponent.",
-}
 
 ARCHETYPES = {
     "tower": {
@@ -84,7 +97,7 @@ def slider_to_float(value):
     return max(0.1, min(1.0, value / 10.0))
 
 
-def default_attributes():
+def default_parameters():
     return {key: 1 for key in ATTRIBUTE_KEYS}
 
 
@@ -102,7 +115,7 @@ def attributes_cost(attributes):
 
 def team_cost(players):
     """Total point-buy cost across both players of a team."""
-    return sum(attributes_cost(p.get("attributes", {})) for p in players)
+    return sum(attributes_cost(p.get("attributes", p.get("parameters", {}))) for p in players)
 
 
 def difficulty_budget(difficulty):
@@ -117,16 +130,14 @@ def archetype_attributes(archetype_id):
     arch = ARCHETYPES.get(archetype_id)
     if arch is None:
         return None
-    merged = default_attributes()
+    merged = default_parameters()
     merged.update(arch["attributes"])
     return merged
 
 
 def ai_team_attributes(difficulty, rng):
-    """Build a deterministic AI opponent within its difficulty budget."""
     budget = ai_budget(difficulty)
-    attrs = default_attributes()
-    # Greedily spend budget on random attributes until exhausted.
+    attrs = default_parameters()
     while budget > 0:
         key = rng.choice(ATTRIBUTE_KEYS)
         if attrs[key] < SLIDER_MAX:

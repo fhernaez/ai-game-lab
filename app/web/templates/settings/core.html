@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Core files — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Core files</h1>
+<p class="muted">The deterministic referee, rules, and physics of the game. These apply to every
+match and are not an LLM.</p>
+
+<div class="panel">
+  <h2>Read as files</h2>
+  <div class="grid grid-2">
+    <div>
+      <h3>rules.yaml</h3>
+      <pre class="code">{{ rules_yaml }}</pre>
+    </div>
+    <div>
+      <h3>physics.yaml</h3>
+      <pre class="code">{{ physics_yaml }}</pre>
+    </div>
+  </div>
+  <h3>referee.md</h3>
+  <pre class="code">{{ referee_md }}</pre>
+</div>
+
+{% if is_admin %}
+<form method="post">
+  <div class="panel">
+    <h2>Edit core parameters (admin)</h2>
+    <p class="caution">⚠ Some parameters are critical: changing them affects game balance for
+    every future match. You can restore the default configuration at any time.</p>
+
+    {% for group in ['rules', 'physics'] %}
+    <h3>{{ group | capitalize }}</h3>
+    {% for key, spec in knobs.items() %}
+    {% if spec.group == group %}
+    <div class="attr-row">
+      <div>
+        <label>{{ key }}{% if spec.critical %} <span class="caution">⚠ critical</span>{% endif %}</label>
+        <p class="muted small">{{ spec.what }}</p>
+        <p class="muted small">Effect: {{ spec.effect }}</p>
+      </div>
+      <input type="number" step="{{ spec.step }}" min="{{ spec.min }}" max="{{ spec.max }}"
+             name="knob_{{ key }}" value="{{ effective[key] }}">
+      <span class="muted">{{ spec.min }}–{{ spec.max }}</span>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+
+    <h3>referee.md (documentation)</h3>
+    <textarea name="referee_md" rows="12">{{ referee_md }}</textarea>
+
+    <div class="row" style="margin-top: 1rem;">
+      <button class="btn" type="submit">Save core configuration</button>
+      <button class="btn btn-danger" type="submit" name="restore" value="1"
+              onclick="return confirm('Restore all core defaults?');">Restore defaults</button>
+    </div>
+  </div>
+</form>
+{% else %}
+<p class="muted">You have read-only access to the core files.</p>
+{% endif %}
+{% endblock %}

@@ -30,7 +30,7 @@ def state(match_id):
                     {
                         "slot": p.slot,
                         "name": (p.configuration_json or {}).get("name", f"Player {p.slot}"),
-                        "attributes": (p.configuration_json or {}).get("attributes", {}),
+                        "parameters": ((p.configuration_json or {}).get("body") or {}).get("parameters", {}),
                     }
                     for p in sorted(team.players, key=lambda x: x.slot)
                 ],
@@ -43,6 +43,7 @@ def state(match_id):
             "host_ready": match.host_ready,
             "guest_ready": match.guest_ready,
             "final_state": match.final_state_json,
+            "core_config": match.core_config_json,
             "teams": teams,
         }
     )

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from flask import current_app, has_app_context
 
+from ..domain.volleyball.body import parameters
 from ..domain.volleyball.engine import MatchCancelled, MatchEngine
 from ..extensions import db
 from ..infrastructure.llm import get_registry
@@ -41,22 +42,14 @@ def build_teams(match):
         players = []
         for p in sorted(team.players, key=lambda x: x.slot):
             cfg = p.configuration_json or {}
+            brain = cfg.get("brain") or {}
+            body = cfg.get("body") or {}
             players.append(
                 {
                     "slot": p.slot,
                     "name": cfg.get("name", f"Player {p.slot}"),
-                    "attributes": cfg.get("attributes", {}),
-                    "model": cfg.get("model", ""),
-                    "params": {
-                        k: cfg.get(k)
-                        for k in (
-                            "temperature", "max_tokens", "top_p",
-                            "frequency_penalty", "presence_penalty",
-                            "stop", "response_format",
-                        )
-                        if cfg.get(k) is not None
-                    },
-                    "instructions": cfg.get("instructions", ""),
+                    "attributes": body.get("parameters") or parameters.default_parameters(),
+                    "brain": brain,
                 }
             )
         teams.append(
@@ -91,10 +84,12 @@ def _run(match_id):
     registry = get_registry()
     global_default = settings_service.get_default_model()
     resolve = _make_resolver(registry, global_default)
-    engine = MatchEngine(teams, resolve, seed=match.seed or 0)
+    core = settings_service.get_effective_core()
+    engine = MatchEngine(teams, resolve, seed=match.seed or 0, core=core)
 
     match.status = "running"
     match.started_at = _utcnow()
+    match.core_config_json = core
     db.session.commit()
 
     seq = [0]

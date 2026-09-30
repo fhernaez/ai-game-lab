@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Advanced view — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Advanced view — agent files</h1>
+<p class="muted">Your players shown as the files that make up a <strong>brain</strong> and a
+<strong>body</strong>. These are read-only here; edit them through the structured form.</p>
+
+<div class="tabs">
+  <a href="{{ url_for('teams.configure', match_id=match.id) }}">Configure (edit)</a>
+  <a class="active" href="{{ url_for('teams.advanced', match_id=match.id) }}">View agent files</a>
+</div>
+
+{% for a in agent_files %}
+<div class="panel">
+  <h2>{{ a.name }} (slot {{ a.slot }})</h2>
+  <div class="grid grid-2">
+    <div>
+      <h3>agent.md</h3>
+      <pre class="code">{{ a.agent_md }}</pre>
+    </div>
+    <div>
+      <h3>skills/*.md</h3>
+      <pre class="code">{{ a.skills_md }}</pre>
+    </div>
+    <div>
+      <h3>tools.yaml</h3>
+      <pre class="code">{{ a.tools_yaml }}</pre>
+    </div>
+    <div>
+      <h3>body.yaml</h3>
+      <pre class="code">{{ a.body_yaml }}</pre>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<div class="panel">
+  <h2>Core files (read-only)</h2>
+  <div class="grid grid-2">
+    <div>
+      <h3>core/rules.yaml</h3>
+      <pre class="code">{{ core_files.rules_yaml }}</pre>
+    </div>
+    <div>
+      <h3>core/physics.yaml</h3>
+      <pre class="code">{{ core_files.physics_yaml }}</pre>
+    </div>
+  </div>
+  <h3>core/referee.md</h3>
+  <pre class="code">{{ core_files.referee_md }}</pre>
+  <p class="muted">The core files are editable only by administrators —
+  <a href="{{ url_for('settings.core') }}">view them here</a>.</p>
+</div>
+{% endblock %}

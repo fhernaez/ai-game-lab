@@ -128,3 +128,32 @@ th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
 .attr-row output { text-align: center; font-weight: 700; }
 .muted.small { font-size: 0.8rem; margin: 0.1rem 0 0; }
 #court-svg { width: 100%; height: auto; display: block; background: #b45309; border-radius: 8px; }
+
+#court-canvas { width: 100%; display: block; background: #b45309; border-radius: 8px; }
+.sim-controls { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap; }
+.sim-controls input[type=range] { flex: 1; min-width: 120px; }
+.sim-controls select { width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+/* Code blocks + file views */
+.code {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  color: var(--text);
+}
+.caution { color: var(--bad); font-weight: 600; }
+
+/* Checkbox groups */
+.checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+.check { display: inline-flex; align-items: center; gap: 0.4rem; }
+.check input { margin: 0; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+.tabs a { padding: 0.5rem 1rem; border-radius: 6px 6px 0 0; color: var(--muted); }
+.tabs a.active { background: var(--panel); color: var(--text); font-weight: 600; }

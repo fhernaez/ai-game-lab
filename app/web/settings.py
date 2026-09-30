@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required
 
 from ..application import settings_service
+from ..domain.volleyball.core import defaults, render as core_render
 from ..infrastructure.llm import provider_ids
 
 bp = Blueprint("settings", __name__, url_prefix="/settings")
@@ -47,3 +48,41 @@ def _redact(uri):
         creds, host = rest.split("@", 1)
         return f"{scheme}://****@{host}"
     return uri
+
+
+@bp.route("/core", methods=["GET", "POST"])
+@login_required
+def core():
+    is_admin = current_user.role == "admin"
+
+    if request.method == "POST":
+        if not is_admin:
+            flash("Administrator access required.", "error")
+            return redirect(url_for("settings.core"))
+        if request.form.get("restore"):
+            settings_service.reset_core()
+            flash("Core configuration reset to defaults.", "success")
+        else:
+            rules_ov, physics_ov = {}, {}
+            for key, spec in defaults.KNOBS.items():
+                raw = request.form.get(f"knob_{key}")
+                if raw is None or raw == "":
+                    continue
+                target = rules_ov if spec["group"] == "rules" else physics_ov
+                target[key] = raw
+            settings_service.set_core_overrides(rules_ov, physics_ov)
+            settings_service.set_referee_md(request.form.get("referee_md", ""))
+            flash("Core configuration saved.", "success")
+        return redirect(url_for("settings.core"))
+
+    effective = settings_service.get_effective_core()
+    referee_md = settings_service.get_referee_md()
+    return render_template(
+        "settings/core.html",
+        knobs=defaults.KNOBS,
+        effective=effective,
+        referee_md=referee_md,
+        rules_yaml=core_render.render_rules_yaml(effective),
+        physics_yaml=core_render.render_physics_yaml(effective),
+        is_admin=is_admin,
+    )

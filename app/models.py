@@ -64,6 +64,7 @@ class Match(db.Model):
     guest_ready = db.Column(db.Boolean, default=False)
     seed = db.Column(db.Integer, default=0)
     final_state_json = db.Column(db.JSON, nullable=True)
+    core_config_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow)
     started_at = db.Column(db.DateTime(timezone=True), nullable=True)
     finished_at = db.Column(db.DateTime(timezone=True), nullable=True)

@@ -87,7 +87,7 @@ pytest
 
 ```
 app/
-├── web/            # routes, templates, static (volleyball_court.js)
+├── web/            # routes, templates, static (sim/)
 ├── application/    # matchmaking, presence, team, match, settings services
 ├── domain/volleyball/   # state, rules, physics, attributes, engine, decisions
 ├── infrastructure/ # LLM provider registry, queue (Redis/rq)

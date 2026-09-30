@@ -106,6 +106,14 @@ and model parameters, each with a short explanation:
 - **Frequency / presence penalty** — reduce repetition.
 - **System prompt** — the strategy/persona given to the agent.
 
+### 4.5 Advanced view (view agent files)
+
+On the team page, the **View agent files** tab shows each player as the files that make
+up an agent: `agent.md` (persona/goal/task), `skills/*.md` (the playbook), `tools.yaml`
+(brain→body connectors), and `body.yaml` (actuators + the 7 parameters). These are
+read-only here — you edit them through the structured form. The **Core files** section
+shows the game's rules, physics, and referee (read-only for students).
+
 ---
 
 ## 5. The match
@@ -117,11 +125,11 @@ Open **Matchmaking → your match**, or **History → View**.
 A simple but accurate court animation shows the four players and the ball: each shot is a
 **ball flight with a real trajectory and flight time** (the ball is drawn **larger when
 high, smaller when low**), and players **move smoothly** to the destination they choose in
-each decision — whoever reaches the ball first plays the next touch. Each serve starts
-**from behind the end line**, then the server moves inside. A live scoreboard shows sets
-and current points, and a **"▶ Match running…"** indicator confirms the match is in
-progress (events stream live while the worker executes). The animation is a separate,
-replaceable module.
+each decision — whoever reaches the ball first plays the next touch. Blocks, net touches,
+and faults are shown as they happen. Each serve starts **from behind the end line**, then
+the server moves inside. A live scoreboard shows sets and current points, and a
+**"▶ Match running…"** indicator confirms the match is in progress (events stream live
+while the worker executes). The animation is a separate, replaceable module.
 
 ### 5.2 The interaction log
 
@@ -151,6 +159,8 @@ see its full interaction log and final state. This is where teachers review clas
 ## 7. Settings & users (admin)
 
 - **Settings** — edit the model list per provider and the global default model.
+- **Settings → Core files** — edit the rules and physics knobs (with a caution legend on
+  critical parameters) and the referee description; restore defaults at any time.
 - **Users** — create accounts, change roles, delete users.
 
 ---

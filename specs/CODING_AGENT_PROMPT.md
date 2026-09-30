@@ -3,8 +3,8 @@
 You are the lead software engineer implementing **AI Game Lab V3**, an educational,
 multi-user web application focused on a **single game: beach volleyball**.
 
-Read all files in this specification before writing code, especially
-`VOLLEYBALL_SPEC.md`.
+Read every file in this specification before writing code — especially
+`VOLLEYBALL_SPEC.md` and `AGENT_ARCHITECTURE.md`.
 
 ## Mission
 
@@ -13,111 +13,97 @@ Build a clean, maintainable, extensible Flask application where students:
 1. log in and see who is online
 2. create a match (choose difficulty) and invite another online player
 3. accept/decline an invitation
-4. configure their team of 2 players: athlete attributes (sliders 1–10), a preset
-   archetype, an LLM model (from the provider list), and LLM model parameters — each with
-   a plain-language explanation
+4. configure their team of 2 players through a **simple GUI** (sliders, archetypes,
+   model) **and an Advanced file view** (persona, skills, tools, body parameters)
 5. mark ready; the match starts when both are ready
 6. watch the graphical match simulation (players + ball on the court)
-7. read the interaction log (decision, attributes, physics outcome per play)
-8. browse match history (all matches stored in the database)
-9. administrators manage users and settings
+7. read the interaction log (message, tool, skill, parameters, outcome per play)
+8. read (not modify) the core files; admins can edit them and restore defaults
+9. browse match history; admins manage users and settings
 
 ## Non-negotiable architecture
 
-- Flask is the web layer, not the game engine.
-- Keep the volleyball domain (state, rules, physics, attributes, engine) Flask-free in
-  `app/domain/volleyball/`.
-- Use application services between routes and domain.
+- Flask is the web layer; the game logic lives in `app/domain/volleyball/`.
+- Keep the **brain / body / core** separation (see `AGENT_ARCHITECTURE.md`):
+  - `brain/` — the LLM agent (persona, goal, task, skills, tools, sensors, memory) and
+    the decision protocol.
+  - `body/` — the physical body (actuators, 7 parameters) — pure, deterministic code.
+  - `core/` — the deterministic referee + world (rules, physics, environment). **Not an
+    LLM.**
 - PostgreSQL + Redis (queue + presence); SQLAlchemy + Alembic; Flask-Login.
 - Jinja2 + HTMX + a small amount of JavaScript.
 - Multi-provider / multi-model LLM abstraction; models selected from `LLM_PROVIDERS`.
-- **No generic game designer.** The game is beach volleyball, implemented once, well.
-- **The graphical simulation is an independent module** (`volleyball_court.js`), driven
-  only by the event stream, so it can be replaced without touching the rest of the app.
-- Store the full interaction log (prompt, model, model params, raw + parsed decision,
-  athlete attributes, physics outcome) on every `DECISION` event.
+- **The graphical simulation is an independent module** (`sim/`), driven
+  only by the event stream.
+- Store the full interaction log; persist events incrementally (commit each event).
 - Run in its own venv; ship `requirements.txt`.
 
-## Educational UX
+## Auto-explainable (`what` + `effect`)
 
-The two most important surfaces are:
-
-1. **Team configuration** — athlete sliders (1–10) + archetypes + LLM model/params, every
-   control with a plain-language explanation of how it changes behavior.
-2. **The interaction log + match simulation** — the readable trace of how the result was
-   reached.
+Every parameter, tool, skill, actuator, rule and physics knob must carry two strings:
+`what` (definition) and `effect` (what it changes on the player/game). The GUI shows both
+in the simple and advanced views.
 
 ## Main navigation
 
-1. **General Settings** (admin): providers (env, read-only), editable model lists,
-   global default model.
-2. **User Administration** (admin): list/create/role/delete users; graceful duplicate
-   handling (no 500).
-3. **Matchmaking**: create match (difficulty), invite an online player, accept/decline,
-   configure team, ready-up.
-4. **Match**: live graphical simulation + interaction log; start/stop/delete controls.
-5. **History**: browse all finished matches and their interaction logs.
+1. **General Settings** (admin): providers, model lists, default model, and the core
+   files (`rules.yaml`, `physics.yaml`, `referee.md`) with caution legend + restore.
+2. **User Administration** (admin): list/create/role/delete users.
+3. **Matchmaking**: create match, invite, accept, configure team, ready.
+4. **Team configuration**: simple view (sliders/archetypes/model) + **Advanced file view**
+   (`agent.md`, `skills/*.md`, `tools.yaml`, `body.yaml`).
+5. **Match**: live simulation + interaction log; start/stop/delete.
+6. **History**: browse finished matches.
 
-## The volleyball engine
+## The engine
 
-Implement `app/domain/volleyball/`:
+`engine.py` orchestrates the rally: the brain decides, the body executes, the core
+resolves. Implement:
 
-- `state.py` — CourtState: ball `(x, y, z)`, scores, sets, server, touches, possession.
-- `rules.py` — win condition (best of 3; 21/15, win by 2), court switch
-  (`% 7` / `% 5`), 3-touch possession, block = touch #1, fault list.
-- `physics.py` — stochastic serve/flight/defense using seeded RNG and the attribute
-  trade-offs (power vs accuracy, distance vs precision, speed vs stamina).
-- `attributes.py` — the 7 attributes, slider→float mapping, point-buy cost, difficulty
-  budgets, archetypes.
-- `engine.py` — MatchEngine: rally → point → set → match loop; calls the LLM for each
-  decision and the physics for each touch; emits events.
-- `decisions.py` / prompts — the structured decision protocol.
-
-All randomness is seeded per match for reproducibility.
+- `brain/tools.py` — a tool registry: `action → actuator` + required body params. This is
+  also the permission list (an action not in the agent's tools is rejected).
+- `brain/skills.py` — skills (playbook text) loaded and injected into the prompt.
+- `brain/sensors.py` — the read-only perception view for the brain.
+- `brain/memory.py` — short-term memory (the current rally messages).
+- `body/actuators.py` — the move library; `body/parameters.py` — the 7 attributes + budget
+  + archetypes + `what`/`effect`.
+- `core/` — rules, physics (seeded), and environment state.
 
 ## Decision protocol
 
-Each acting player's LLM returns a structured JSON decision:
-
 ```json
-{"action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
+{"message": "...", "action": "SERVE|DIG|SET|SPIKE|PLACE|BLOCK",
+ "power": 0.0..1.0, "target": [x, y], "move_to": [x, y], "move_speed": 0.0..1.0}
 ```
 
-Validate schema; clamp power to `[0,1]`; clamp target to the court. On invalid output,
-fall back to a deterministic default decision (never crash).
+Validate: action ∈ agent's tools → clamp power/target → clamp `move_to` to the player's
+own half. On invalid output, fall back to a deterministic default.
 
 ## Testing requirements
 
-Implement tests for:
-
-- authentication + presence
-- user administration (create/role/delete, duplicate handling)
-- team configuration (slider validation, point-buy budget, archetypes)
-- difficulty budgets
-- volleyball rules (win condition, court switch, faults, possession)
-- physics (seeded determinism, in/out/net outcomes)
-- match lifecycle (create/invite/accept/ready/start/stop/delete)
-- interaction log persistence
-- history browsing
+Implement tests for: authentication+presence, user administration, team configuration
+(sliders/budget/archetypes), the Advanced file view (render/save/round-trip), core-file
+read-only + admin edit + restore defaults, brain tools permission check, skills injected
+into the prompt, `what`/`effect` presence, volleyball rules + faults, physics
+determinism, match lifecycle, interaction-log persistence, history.
 
 ## Implementation order
 
 1. project skeleton (venv + requirements.txt)
-2. configuration
-3. database + migrations
-4. authentication + presence
-5. user administration
-6. attributes (7 skills, point-buy, difficulty, archetypes)
-7. volleyball domain (state, rules, physics)
-8. match engine + decision protocol
-9. LLM abstraction (multi-provider, params)
-10. matchmaking
-11. team configuration UI (sliders + archetypes + model select + explanations)
-12. match view + interaction log
-13. graphical simulation (independent module)
-14. history
-15. tests
-16. Docker
+2. configuration + database + migrations
+3. authentication + presence + user administration
+4. `body/` (parameters + actuators) with `what`/`effect`
+5. `core/` (rules + physics + world)
+6. `brain/` (agent, tools, skills, sensors, memory, decision)
+7. engine
+8. LLM abstraction
+9. matchmaking + team configuration (simple view)
+10. Advanced file view + core read-only/admin
+11. match view + interaction log
+12. graphical simulation (independent)
+13. history
+14. tests
+15. Docker
 
 ## Code quality
 
@@ -126,6 +112,7 @@ framework. Pin dependencies. Document decisions in `docs/DECISIONS.md`.
 
 ## First milestone
 
-> A user can log in, create a match at a difficulty, invite another user, both configure
-> their 2 players (sliders + model), ready up, and watch one rally resolve (serve → a
-> touch or two → point/fault) appear in the interaction log and the graphical simulation.
+> A user can log in, create a match, invite another user, both configure their 2 players
+> (sliders + model), ready up, and watch one rally resolve (serve → touches → point) in
+> the interaction log and the graphical simulation — and open the Advanced view to read
+> the agent's files.
