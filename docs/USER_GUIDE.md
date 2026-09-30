@@ -117,7 +117,9 @@ Open **Matchmaking → your match**, or **History → View**.
 A simple but accurate court animation shows the four players and the ball: each shot is a
 **ball flight with a real trajectory and flight time**, and players **move to intercept**
 the ball — whoever reaches the ball first plays the next touch. A live scoreboard shows
-sets and current points. The animation is a separate, replaceable module.
+sets and current points, and a **"▶ Match running…"** indicator confirms the match is in
+progress (events stream live while the worker executes). The animation is a separate,
+replaceable module.
 
 ### 5.2 The interaction log
 

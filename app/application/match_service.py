@@ -17,7 +17,7 @@ def _utcnow():
 
 
 def start_match(match):
-    if match.status in ("running", "finished", "cancelled", "declined"):
+    if match.status in ("queued", "running", "finished", "cancelled", "declined"):
         return
     match.status = "queued"
     db.session.commit()
@@ -91,32 +91,63 @@ def _run(match_id):
     registry = get_registry()
     global_default = settings_service.get_default_model()
     resolve = _make_resolver(registry, global_default)
-
     engine = MatchEngine(teams, resolve, seed=match.seed or 0)
 
     match.status = "running"
     match.started_at = _utcnow()
     db.session.commit()
 
+    seq = [0]
+    failure = [None]
+
+    def on_event(event):
+        # Persist each event immediately so the live view updates in real time.
+        seq[0] += 1
+        db.session.add(
+            Event(
+                match_id=match_id,
+                sequence_number=seq[0],
+                event_type=event["event_type"],
+                actor_id=event.get("actor_id"),
+                payload_json=event.get("payload", {}),
+            )
+        )
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            failure[0] = str(exc)
+            raise MatchCancelled()
+
+    def should_stop():
+        m = db.session.get(Match, match_id)
+        return m is None or m.status == "cancelled"
+
     try:
-        events, final_state, usages = engine.run()
+        _events, final_state, _usages = engine.run(on_event=on_event, should_stop=should_stop)
     except MatchCancelled:
-        match.status = "cancelled"
-        match.finished_at = _utcnow()
-        db.session.commit()
+        if failure[0]:
+            _finalize(match_id, "failed", {"error": failure[0]})
+        else:
+            _finalize(match_id, "cancelled")
         return
     except Exception as exc:
-        match.status = "failed"
-        match.finished_at = _utcnow()
-        match.final_state_json = {"error": str(exc)}
-        db.session.commit()
-        raise
+        _finalize(match_id, "failed", {"error": str(exc)})
+        return
 
-    _persist_events(match, events)
+    _finalize(match_id, "finished", final_state)
 
-    match.status = "finished"
+
+def _finalize(match_id, status, final_state=None):
+    """Safely set the match's final status, tolerating deletion mid-run."""
+    match = db.session.get(Match, match_id)
+    if match is None:
+        db.session.rollback()
+        return
+    match.status = status
     match.finished_at = _utcnow()
-    match.final_state_json = final_state
+    if final_state is not None:
+        match.final_state_json = final_state
     db.session.commit()
 
 
@@ -141,20 +172,6 @@ def delete_match(match):
 
 def history():
     return Match.query.order_by(Match.created_at.desc()).all()
-
-
-def _persist_events(match, events):
-    for seq, event in enumerate(events, start=1):
-        db.session.add(
-            Event(
-                match_id=match.id,
-                sequence_number=seq,
-                event_type=event["event_type"],
-                actor_id=event.get("actor_id"),
-                payload_json=event.get("payload", {}),
-            )
-        )
-    db.session.flush()
 
 
 def events_after(match, after_seq):

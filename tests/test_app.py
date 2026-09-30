@@ -142,3 +142,53 @@ def test_match_delete_cascades(app, client):
         assert db.session.get(Match, mid) is None
         assert Team.query.filter_by(match_id=mid).count() == 0
         assert Event.query.filter_by(match_id=mid).count() == 0
+
+
+def test_start_match_does_not_reenqueue(app):
+    from unittest.mock import patch
+
+    from app.application import match_service
+    from app.models import Match
+
+    with app.app_context():
+        m = Match(host_id=1, guest_id=2, status="queued", difficulty="medium", seed=1)
+        db.session.add(m)
+        db.session.commit()
+        with patch.object(match_service, "enqueue") as mock_enqueue:
+            match_service.start_match(m)
+        mock_enqueue.assert_not_called()
+        assert m.status == "queued"
+
+
+def test_engine_streams_events(app):
+    from app.domain.volleyball.attributes import default_attributes
+    from app.domain.volleyball.engine import MatchEngine
+    from app.infrastructure.llm.mock import MockLLMProvider
+
+    collected = []
+
+    def resolve(ref):
+        return MockLLMProvider(), "mock-model"
+
+    teams = []
+    for ti in range(2):
+        players = [
+            {
+                "slot": s,
+                "name": f"P{s}",
+                "attributes": {k: 5 for k in default_attributes()},
+                "model": "",
+                "params": {},
+                "instructions": "",
+            }
+            for s in (1, 2)
+        ]
+        teams.append({"name": f"T{ti}", "instructions": "", "players": players})
+
+    engine = MatchEngine(teams, resolve, seed=1)
+    _events, _state, _usages = engine.run(on_event=collected.append)
+
+    assert len(collected) > 0
+    assert collected[0]["event_type"] == "MATCH_STARTED"
+    assert any(e["event_type"] == "TRAJECTORY" for e in collected)
+    assert any(e["event_type"] == "MATCH_FINISHED" for e in collected)

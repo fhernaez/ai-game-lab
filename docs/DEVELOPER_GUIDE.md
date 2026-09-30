@@ -66,6 +66,11 @@ touch. The core scores when the ball lands.
 - `events.py` — `DECISION`, `TRAJECTORY`, `INTERCEPT`, `POINT`, etc.
 - Every agent's message is accumulated and shared to later agents in the rally.
 
+Events are **persisted incrementally** — `match_service._run` commits each event as the
+engine emits it (via an `on_event` callback), so the live view updates in real time. A
+failed event write marks the match `failed` (never silently empty). `start_match` is
+idempotent: it refuses to enqueue a match that is already `queued` or `running`.
+
 `match_service.build_teams()` materializes the DB teams into the dicts the engine expects;
 `match_service._make_resolver()` builds the `resolve(model_ref) -> (provider, model)`
 callable from the LLM registry.

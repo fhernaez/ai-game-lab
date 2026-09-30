@@ -13,6 +13,7 @@
   const svg = document.getElementById("court-svg");
   const scoreboardEl = document.getElementById("scoreboard");
   const logEl = document.getElementById("event-log");
+  const statusEl = document.getElementById("match-status");
   const NS = "http://www.w3.org/2000/svg";
 
   // Court mapping: X (width 0..8) -> vertical, Y (length 0..16) -> horizontal.
@@ -35,7 +36,24 @@
     const state = await (await fetch(`/api/matches/${matchId}/state`)).json();
     buildCourt(state.teams || []);
     renderScoreboard(state.final_state);
+    setStatus(state.status);
     poll();
+  }
+
+  function setStatus(status) {
+    if (!statusEl) return;
+    if (status === "queued" || status === "accepted" || status === "ready") {
+      statusEl.textContent = "Waiting to start…";
+    } else if (status === "running") {
+      statusEl.textContent = "▶ Match running…";
+    } else if (status === "finished" && scoreboard && scoreboard.winner !== undefined) {
+      const names = Array.from(new Set(players.map(p => p.teamName)));
+      statusEl.textContent = "Finished — " + (names[scoreboard.winner] || "winner");
+    } else if (status === "failed" || status === "cancelled") {
+      statusEl.textContent = "Match " + status + ".";
+    } else {
+      statusEl.textContent = "";
+    }
   }
 
   function buildCourt(teams) {
@@ -212,7 +230,7 @@
       renderEvent(ev);
       logEvent(ev);
       i += 1;
-      setTimeout(step, 220);
+      setTimeout(step, 60);
     };
     step();
   }
@@ -220,6 +238,7 @@
   async function finalize() {
     const st = await (await fetch(`/api/matches/${matchId}/state`)).json();
     if (st.final_state) { scoreboard = st.final_state; updateScoreboard(); }
+    setStatus(st.status);
   }
 
   function el(tag, attrs) {

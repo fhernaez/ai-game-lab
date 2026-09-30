@@ -142,6 +142,11 @@ Every meaningful transition emits an immutable event with the full trace:
 - `POINT` / `FAULT` — the scoring outcome
 - `SET_WON`, `COURT_SWITCH`, `MATCH_FINISHED`
 
+Events are **streamed and persisted incrementally** as the match runs (one commit per
+event), so the live view updates in real time while the worker executes. If an event
+cannot be persisted, the match is marked `failed` with the error — it must never run to
+completion with an empty, silently-lost interaction log.
+
 ## 8. Multi-user matches
 
 ```
@@ -150,6 +155,8 @@ created → invited → accepted → (both ready) → running → finished/cance
 
 - 1v1: each user owns one Team of 2 players.
 - Presence (`last_seen_at`) tracks who is online (polled).
+- A match is enqueued **exactly once**: the start action is idempotent and refuses to
+  re-enqueue a match that is already `queued` or `running`.
 - A player can read/write only their own team.
 
 ## 9. Graphical simulation (independent)

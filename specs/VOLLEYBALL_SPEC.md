@@ -203,7 +203,9 @@ Requirements:
 - Top-down or 2.5D court (16 × 8), net line, side/end lines.
 - Four player markers (2 per team, distinct colors) that move to the ball's projected
   landing zone.
-- A ball marker that animates between touches along the flight (with an arc for height).
+- A ball marker that animates along the trajectory using its flight time (with an arc for
+  height).
 - A scoreboard (sets + current points) and a serve/possession indicator.
-- The animation is replayable from the stored event log and polls live while the match
-  is running.
+- A visible "running…" indicator while the worker is executing.
+- The animation polls the event stream live (events are persisted incrementally by the
+  worker) and is replayable from the stored event log.

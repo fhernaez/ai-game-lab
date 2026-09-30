@@ -19,6 +19,22 @@ class MatchCancelled(Exception):
     pass
 
 
+class _EventSink(list):
+    """A list that also forwards each appended event to an optional callback.
+
+    Lets the caller persist/stream events live as the match produces them.
+    """
+
+    def __init__(self, on_event=None):
+        super().__init__()
+        self.on_event = on_event
+
+    def append(self, item):
+        super().append(item)
+        if self.on_event:
+            self.on_event(item)
+
+
 class MatchEngine:
     def __init__(self, teams, resolve, seed=0):
         self.teams = teams
@@ -29,8 +45,8 @@ class MatchEngine:
             for p in team["players"]:
                 self.positions[(ti, p["slot"])] = self._home_position(ti, p["slot"])
 
-    def run(self, should_stop=None):
-        events = []
+    def run(self, on_event=None, should_stop=None):
+        events = _EventSink(on_event)
         usages = []
         state = CourtState()
 
