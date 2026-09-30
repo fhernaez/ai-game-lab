@@ -91,10 +91,12 @@ class MatchEngine:
 
         # SERVE
         server = self._pick_player(server_team, state)
+        origin = self._serve_origin(state.sides[server_team])
+        # The server steps out behind the end line to serve.
+        self.positions[(server_team, server["slot"])] = list(origin)
         decision, _ = self._decide(server_team, server, "SERVE", state, events, usages, rally_history)
         rally_history.append(f"[{server['name']}] {decision['message']}")
         target = self._clamp_to_half(decision["target"], 1 - state.sides[server_team])
-        origin = self._serve_origin(state.sides[server_team])
         landing, fault, offset = physics.resolve_shot("SERVE", server["attributes"], decision["power"], target, self.rng)
         state.touches = 0
         if fault:
@@ -224,7 +226,7 @@ class MatchEngine:
         return [self.rng.uniform(0.5, 7.5), y]
 
     def _serve_origin(self, own_half):
-        return [4.0, 1.0 if own_half == 0 else 15.0]
+        return [4.0, -1.0 if own_half == 0 else 17.0]
 
     def _decide(self, team_index, player, action_hint, state, events, usages, rally_history):
         provider, model = self.resolve(player.get("model") or "")
@@ -232,6 +234,7 @@ class MatchEngine:
             self.teams[team_index]["name"], player, state, action_hint, rally_history
         )
         fallback = self._fallback_decision(action_hint, team_index, state)
+        from_pos = list(self.positions.get((team_index, player["slot"]), [4.0, 8.0]))
 
         error = None
         raw = ""
@@ -253,6 +256,11 @@ class MatchEngine:
             decision = dict(fallback)
             error = str(exc)
 
+        # Record the movement destination and speed, then update the tracked position.
+        decision.setdefault("move_to", fallback["move_to"])
+        decision.setdefault("move_speed", fallback["move_speed"])
+        self.positions[(team_index, player["slot"])] = list(decision["move_to"])
+
         events.append(
             ev.make_event(
                 ev.DECISION,
@@ -262,6 +270,9 @@ class MatchEngine:
                 slot=player["slot"],
                 action_hint=action_hint,
                 message=decision.get("message", ""),
+                from_pos=from_pos,
+                move_to=decision["move_to"],
+                move_speed=decision["move_speed"],
                 prompt=messages,
                 model=model_used,
                 params=player.get("params", {}),
@@ -280,16 +291,25 @@ class MatchEngine:
 
     def _fallback_decision(self, action_hint, team_index, state):
         target = self._target_in_half(1 - state.sides[team_index])
+        own_half = state.sides[team_index]
+        net_y = rules.NET_Y - 1.0 if own_half == 0 else rules.NET_Y + 1.0
+        speed = self.rng.uniform(0.4, 1.0)
         if action_hint == "SERVE":
+            move_to = [4.0, 3.0 if own_half == 0 else 13.0]
             return {"message": "I serve with power to the far corner.", "action": "SERVE",
-                    "power": self.rng.uniform(0.5, 0.9), "target": target}
+                    "power": self.rng.uniform(0.5, 0.9), "target": target,
+                    "move_to": move_to, "move_speed": speed}
         if action_hint == "DIG":
+            move_to = [state.ball["x"], state.ball["y"]]
             return {"message": "I dig and keep the ball alive.", "action": "DIG",
-                    "power": 0.3, "target": [4.0, rules.NET_Y - 1.0]}
+                    "power": 0.3, "target": [4.0, net_y],
+                    "move_to": move_to, "move_speed": speed}
         if action_hint == "SET":
             return {"message": "I set a clean ball to the net.", "action": "SET",
-                    "power": 0.3, "target": [4.0, rules.NET_Y - 0.5]}
+                    "power": 0.3, "target": [4.0, net_y],
+                    "move_to": [4.0, net_y], "move_speed": speed}
         action = "SPIKE" if self.rng.random() < 0.6 else "PLACE"
         verb = "spike hard" if action == "SPIKE" else "place a soft shot"
         return {"message": f"I {verb} to the open court.", "action": action,
-                "power": self.rng.uniform(0.4, 1.0), "target": target}
+                "power": self.rng.uniform(0.4, 1.0), "target": target,
+                "move_to": [4.0, net_y], "move_speed": speed}

@@ -24,8 +24,10 @@ Current match state (ball position, flight time, score):
 What has happened this rally:
 {{rally_history}}
 
-Return a short message explaining what you will do, plus your structured decision:
-{"message": "...", "action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
+Return a short message explaining what you will do, plus your structured decision
+(including where you will move and how fast):
+
+{"message": "...", "action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y], "move_to": [x, y], "move_speed": 0.0..1.0}
 ```
 
 ## Serve

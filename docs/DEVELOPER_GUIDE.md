@@ -62,8 +62,10 @@ defending players **move to intercept** — whoever reaches the ball first plays
 touch. The core scores when the ball lands.
 
 - `physics.py` — trajectory (`resolve_shot`), `flight_time`, `reach_time`/`can_reach`.
-- `decisions.py` — the message + decision protocol and the shared-rally-context prompt.
-- `events.py` — `DECISION`, `TRAJECTORY`, `INTERCEPT`, `POINT`, etc.
+- `decisions.py` — the message + decision protocol (ball hit **and** the player's own
+  `move_to`/`move_speed` movement) and the shared-rally-context prompt.
+- `events.py` — `DECISION` (with `from_pos`, `move_to`, `move_speed`), `TRAJECTORY`,
+  `INTERCEPT`, `POINT`, etc.
 - Every agent's message is accumulated and shared to later agents in the rally.
 
 Events are **persisted incrementally** — `match_service._run` commits each event as the

@@ -115,9 +115,11 @@ Open **Matchmaking → your match**, or **History → View**.
 ### 5.1 The graphical simulation
 
 A simple but accurate court animation shows the four players and the ball: each shot is a
-**ball flight with a real trajectory and flight time**, and players **move to intercept**
-the ball — whoever reaches the ball first plays the next touch. A live scoreboard shows
-sets and current points, and a **"▶ Match running…"** indicator confirms the match is in
+**ball flight with a real trajectory and flight time** (the ball is drawn **larger when
+high, smaller when low**), and players **move smoothly** to the destination they choose in
+each decision — whoever reaches the ball first plays the next touch. Each serve starts
+**from behind the end line**, then the server moves inside. A live scoreboard shows sets
+and current points, and a **"▶ Match running…"** indicator confirms the match is in
 progress (events stream live while the worker executes). The animation is a separate,
 replaceable module.
 

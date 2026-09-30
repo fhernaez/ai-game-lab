@@ -120,16 +120,29 @@ environment (`LLM_PROVIDERS`), plus standard model parameters:
 
 The LLM receives the current game state **plus the shared rally context** (the messages
 every agent has produced so far this rally) and returns a **message + structured
-decision**:
+decision** that covers **both** the ball hit and the player's own movement:
 
 ```json
-{"message": "I spike hard to the open far corner", "action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK", "power": 0.0..1.0, "target": [x, y]}
+{
+  "message": "I spike hard to the open far corner",
+  "action": "SERVE"|"DIG"|"SET"|"SPIKE"|"PLACE"|"BLOCK",
+  "power": 0.0..1.0,
+  "target": [x, y],
+  "move_to": [x, y],
+  "move_speed": 0.1..1.0
+}
 ```
 
-The decision is then executed by the deterministic core using the athlete attributes.
-The **interaction log** records, for every decision: the message, the prompt, the model,
-the model parameters, the raw response, the parsed decision, the athlete attributes, and
-the physics outcome (trajectory, flight time, interception, fault).
+- `action` / `power` / `target` — the ball hit (technique, force, desired trajectory).
+- `move_to` — the court position the player moves to (destination).
+- `move_speed` — how fast the player sprints there (0.1 slow .. 1.0 elite).
+
+The **serve is taken from behind the end line** (outside the court); after serving, the
+player moves inside to their `move_to`. The decision is then executed by the
+deterministic core using the athlete attributes. The **interaction log** records, for
+every decision: the message, the prompt, the model, the model parameters, the raw
+response, the parsed decision (including movement), the athlete attributes, and the
+physics outcome (trajectory, flight time, interception, fault).
 
 ### 5.1 Model parameter education
 
@@ -201,10 +214,12 @@ customized and enhanced later without affecting the rest of the app.
 Requirements:
 
 - Top-down or 2.5D court (16 × 8), net line, side/end lines.
-- Four player markers (2 per team, distinct colors) that move to the ball's projected
-  landing zone.
+- Four player markers (2 per team, distinct colors) that move smoothly to the position
+  chosen in each `move_to` decision (constant size).
 - A ball marker that animates along the trajectory using its flight time (with an arc for
-  height).
+  height) and is drawn **larger when high and smaller when low**.
+- The serve starts **from behind the end line** (outside the court), then the server
+  moves inside.
 - A scoreboard (sets + current points) and a serve/possession indicator.
 - A visible "running…" indicator while the worker is executing.
 - The animation polls the event stream live (events are persisted incrementally by the

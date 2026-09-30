@@ -42,8 +42,10 @@ WHAT HAS HAPPENED THIS RALLY
 AVAILABLE ACTIONS
 SERVE, DIG, SET, SPIKE, PLACE, BLOCK. Target coordinates X in 0..8, Y in 0..16.
 
-Return JSON: {"message": "...", "action": "...", "power": 0.0..1.0, "target": [x, y]}
+Return JSON: {"message": "...", "action": "...", "power": 0.0..1.0, "target": [x, y], "move_to": [x, y], "move_speed": 0.0..1.0}
 ```
+
+`move_to` is where you will move, and `move_speed` is how fast you will sprint there.
 
 ## Important
 
@@ -57,8 +59,11 @@ Return JSON: {"message": "...", "action": "...", "power": 0.0..1.0, "target": [x
 ## Output protocol
 
 ```json
-{"message": "I spike hard to the open far corner", "action": "SPIKE", "power": 0.9, "target": [7.2, 14.5]}
+{"message": "I spike hard to the open far corner", "action": "SPIKE", "power": 0.9, "target": [7.2, 14.5], "move_to": [4.0, 9.0], "move_speed": 0.8}
 ```
+
+The decision covers the ball hit (`action`, `power`, `target`) **and** the player's own
+movement (`move_to`, `move_speed`).
 
 If a model returns invalid output (or the LLM call fails), the engine falls back to a
 deterministic default decision and records the failure/error in the interaction log.
