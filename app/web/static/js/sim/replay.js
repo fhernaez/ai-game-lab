@@ -100,12 +100,22 @@ export class ReplayEngine {
       if (startOverride === undefined) cursor += dur;
     };
     let lastBall = null;
+    let pendingMove = null;
 
     for (const ev of this.events) {
       const p = ev.payload || {};
       const k = key(p.team_name, p.slot);
       // Only an INTERCEPT immediately after a TRAJECTORY reuses the flight timing.
       if (ev.event_type !== "INTERCEPT") lastBall = null;
+      // Flush a deferred recovery move if the hit produced no trajectory (fault).
+      if (pendingMove && ev.event_type !== "TRAJECTORY") {
+        push("move", MOVE_DUR(0.5), {
+          teamName: pendingMove.teamName, slot: pendingMove.slot,
+          from: pendingMove.from, to: pendingMove.to, actor: true, action: "run",
+        });
+        pos[key(pendingMove.teamName, pendingMove.slot)] = pendingMove.to;
+        pendingMove = null;
+      }
 
       if (ev.event_type === "RALLY_STARTED") {
         const positions = [];
@@ -121,26 +131,44 @@ export class ReplayEngine {
         const from = p.from_pos || pos[k];
         const to = p.move_to || (p.parsed && p.parsed.move_to) || from;
         const speed = p.move_speed || (p.parsed && p.parsed.move_speed) || 0.5;
-        // Server visibly steps back to the line before serving.
-        if (p.action_hint === "SERVE" && from) {
-          const home = this._homeOf(p.team_name, p.slot);
-          if (home && (from[0] !== home[0] || from[1] !== home[1])) {
-            push("move", 250, { teamName: p.team_name, slot: p.slot, from: home, to: from });
+        const action = ACTION_POSE[(p.parsed && p.parsed.action) || p.action_hint] || "run";
+
+        if (p.action_hint === "BLOCK") {
+          // The blocker moves to the net immediately (no ball trajectory follows).
+          push("move", MOVE_DUR(speed), {
+            teamName: p.team_name, slot: p.slot, from, to, actor: true, action: "block",
+          });
+          pos[k] = to;
+        } else {
+          // Approach: walk to the ball (the hit position).
+          if (pos[k] && from && (pos[k][0] !== from[0] || pos[k][1] !== from[1])) {
+            push("move", 250, { teamName: p.team_name, slot: p.slot, from: pos[k], to: from, action });
           }
+          pos[k] = from;
+          // Defer the recovery move until after the ball flight.
+          pendingMove = {
+            teamName: p.team_name, slot: p.slot, from, to,
+            serve: p.action_hint === "SERVE",
+          };
         }
-        push("move", MOVE_DUR(speed), {
-          teamName: p.team_name, slot: p.slot, from, to,
-          actor: true, serve: p.action_hint === "SERVE",
-          action: ACTION_POSE[(p.parsed && p.parsed.action) || p.action_hint] || "run",
-        });
-        pos[k] = to;
       } else if (ev.event_type === "TRAJECTORY") {
         const from = normalizePos(p.from_ball) || { x: 4, y: 8, z: 0 };
         const to = p.ball || from;
         const peak = Math.max(2.0, (p.flight_time || 0.5) * 3.5);
         const dur = FLIGHT_DUR(p.flight_time);
         push("ball", dur, { from, to, peak });
-        lastBall = { start: segments[segments.length - 1].start, dur };
+        const ballSeg = segments[segments.length - 1];
+        if (pendingMove) {
+          // The hitter recovers (moves to move_to) while the ball flies.
+          push("move", dur, {
+            teamName: pendingMove.teamName, slot: pendingMove.slot,
+            from: pendingMove.from, to: pendingMove.to,
+            actor: true, serve: pendingMove.serve, action: "run",
+          }, ballSeg.start);
+          pos[key(pendingMove.teamName, pendingMove.slot)] = pendingMove.to;
+          pendingMove = null;
+        }
+        lastBall = { start: ballSeg.start, dur };
       } else if (ev.event_type === "INTERCEPT") {
         const from = pos[k] || p.at;
         if (lastBall) {
@@ -161,13 +189,6 @@ export class ReplayEngine {
       }
     }
     return segments;
-  }
-
-  _homeOf(teamName, slot) {
-    const team = this.teams.find((t) => t.name === teamName);
-    if (!team) return null;
-    const ti = this.teams.indexOf(team);
-    return HOME[ti][slot];
   }
 
   applySegment(seg, local) {

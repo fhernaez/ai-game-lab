@@ -69,7 +69,9 @@ touch. The core scores when the ball lands.
   `INTERCEPT`, `BLOCK`, `POINT`, etc.
 - Every agent's message is accumulated and shared to later agents in the rally.
 - Every touch emits a `TRAJECTORY` (serve, dig, set, and the final attack), so the
-  graphical simulation shows the ball travelling continuously between players.
+  graphical simulation shows the ball travelling continuously between players. The ball's
+  `from_ball` always equals the hitting player's `from_pos` — the ball only changes
+  trajectory when a player standing at it hits it.
 
 The deterministic core also enforces the fault set — `net`, `out`, `net_touch`,
 `illegal_attack`, `four_touches` — and attempts a `BLOCK` on fast attacks. Players'

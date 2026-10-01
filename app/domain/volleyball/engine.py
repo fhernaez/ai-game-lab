@@ -208,13 +208,13 @@ class MatchEngine:
             state.flight_time = dig_flight
             self._trajectory(events, landing, state.ball, dig_flight, 0.0, team_index, receiver["slot"])
 
-        # Touch 2: set (the partner).
+        # Touch 2: set (the partner runs to the ball and sets it).
         setter = self._other_player(team_index, receiver)
+        self.positions[(team_index, setter["slot"])] = [state.ball["x"], state.ball["y"]]
         d2, _ = self._decide(team_index, setter, "SET", state, events, usages, rally_history)
         rally_history.append(f"[{setter['name']}] {d2['message']}")
         state.touches += 1
         set_point = [4.0, rules.net_y(self.core) - 1.2 if own_half == 0 else rules.net_y(self.core) + 1.2]
-        self.positions[(team_index, setter["slot"])] = list(set_point)
         # The set moves the ball from the dig/block-touch point to the attack point.
         set_from = [state.ball["x"], state.ball["y"]]
         set_flight = physics.flight_time(set_from, set_point, "SET", d2["power"], setter["attributes"], self.core)
@@ -222,8 +222,9 @@ class MatchEngine:
         state.flight_time = set_flight
         self._trajectory(events, set_from, state.ball, set_flight, 0.0, team_index, setter["slot"])
 
-        # Touch 3: attack over the net.
+        # Touch 3: attack (the attacker runs to the ball and hits it).
         attacker = receiver if self.rng.random() < 0.5 else setter
+        self.positions[(team_index, attacker["slot"])] = list(set_point)
         d3, _ = self._decide(team_index, attacker, "SPIKE", state, events, usages, rally_history)
         rally_history.append(f"[{attacker['name']}] {d3['message']}")
         state.touches += 1

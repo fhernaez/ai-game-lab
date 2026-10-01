@@ -580,3 +580,42 @@ def test_strategy_presets(app):
         assert "custom" in settings_service.get_strategies()
         settings_service.reset_strategies()
         assert "custom" not in settings_service.get_strategies()
+
+
+def test_ball_originates_from_hitter(app):
+    from app.domain.volleyball.body.parameters import default_parameters
+    from app.domain.volleyball.engine import MatchEngine
+    from app.infrastructure.llm.mock import MockLLMProvider
+
+    def resolve(ref):
+        return MockLLMProvider(), "mock-model"
+
+    teams = []
+    for ti in range(2):
+        players = [
+            {"slot": s, "name": f"P{s}", "attributes": {k: 5 for k in default_parameters()}, "brain": {}}
+            for s in (1, 2)
+        ]
+        teams.append({"name": f"T{ti}", "instructions": "", "players": players})
+
+    engine = MatchEngine(teams, resolve, seed=5)
+    events, _, _ = engine.run()
+
+    last_decision = {}
+    checked = 0
+    for ev in events:
+        if ev["event_type"] == "DECISION":
+            p = ev["payload"]
+            last_decision[(p.get("team"), p.get("slot"))] = p
+        elif ev["event_type"] == "TRAJECTORY":
+            p = ev["payload"]
+            key = (p.get("team"), p.get("slot"))
+            dec = last_decision.get(key)
+            assert dec is not None, f"trajectory without a prior decision: {p}"
+            fb = p["from_ball"]
+            fp = dec["from_pos"]
+            assert abs(fb["x"] - fp[0]) < 1e-6 and abs(fb["y"] - fp[1]) < 1e-6, (
+                f"ball origin {fb} != hitter position {fp}"
+            )
+            checked += 1
+    assert checked > 0
