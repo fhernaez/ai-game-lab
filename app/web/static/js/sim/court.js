@@ -15,9 +15,9 @@ export class Perspective {
   constructor(w, h) {
     this.w = w;
     this.h = h;
-    this.F = 6;                  // perspective strength (smaller = more foreshortening)
-    this.horizon = h * 0.30;     // far end line screen Y
-    this.nearBottom = h * 0.92;  // near end line screen Y
+    this.F = 8;                  // perspective strength (smaller = more foreshortening)
+    this.horizon = h * 0.28;     // far end line screen Y
+    this.nearBottom = h * 0.86;  // near end line screen Y (room below for the server)
     this.margin = 40;
     this.unit = (w - this.margin * 2) / WORLD.WIDTH; // px per meter at y = 0
     this.centerX = w / 2;

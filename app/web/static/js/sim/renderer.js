@@ -7,7 +7,7 @@
 import { WORLD, Perspective } from "./court.js";
 import { drawPlayerFigure } from "./players.js";
 
-const BALL_R = 6;
+const BALL_R = 9;
 
 export class Renderer {
   constructor(canvas) {
@@ -43,24 +43,36 @@ export class Renderer {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // 2. Court trapezoid (sand).
+    // 2. Sand free zone (a margin behind/beyond the court for the servers).
+    const freeBl = P.project(0, -1.5, 0);
+    const freeBr = P.project(WORLD.WIDTH, -1.5, 0);
+    const freeTr = P.project(WORLD.WIDTH, WORLD.LENGTH + 1.5, 0);
+    const freeTl = P.project(0, WORLD.LENGTH + 1.5, 0);
+    const sand = ctx.createLinearGradient(0, freeBl.y, 0, freeTl.y);
+    sand.addColorStop(0, "#f59e0b");
+    sand.addColorStop(1, "#d97706");
+    ctx.fillStyle = sand;
+    ctx.beginPath();
+    ctx.moveTo(freeBl.x, freeBl.y);
+    ctx.lineTo(freeBr.x, freeBr.y);
+    ctx.lineTo(freeTr.x, freeTr.y);
+    ctx.lineTo(freeTl.x, freeTl.y);
+    ctx.closePath();
+    ctx.fill();
+
+    // Court boundary (the actual 8 x 16 court).
     const bl = P.project(0, 0, 0);
     const br = P.project(WORLD.WIDTH, 0, 0);
     const tr = P.project(WORLD.WIDTH, WORLD.LENGTH, 0);
     const tl = P.project(0, WORLD.LENGTH, 0);
-    const sand = ctx.createLinearGradient(0, bl.y, 0, tl.y);
-    sand.addColorStop(0, "#f59e0b");
-    sand.addColorStop(1, "#d97706");
-    ctx.fillStyle = sand;
+    ctx.strokeStyle = "#fef3c7";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(bl.x, bl.y);
     ctx.lineTo(br.x, br.y);
     ctx.lineTo(tr.x, tr.y);
     ctx.lineTo(tl.x, tl.y);
     ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "#fef3c7";
-    ctx.lineWidth = 2;
     ctx.stroke();
 
     // Court lines (sidelines, end lines, center line).
@@ -247,7 +259,7 @@ export class Renderer {
     ctx.font = `bold ${Math.max(9, 10 * s)}px system-ui`;
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    ctx.fillText(pl.label, pp.x, pp.y - 40 * s);
+    ctx.fillText(pl.label, pp.x, pp.y - 64 * s);
   }
 
   drawServeBadge(state) {

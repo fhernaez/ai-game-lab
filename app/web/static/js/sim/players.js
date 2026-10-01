@@ -60,8 +60,8 @@ function pose(action, tMs) {
 export function drawPlayerFigure(ctx, x, y, s, teamIndex, view, action, facing, tMs) {
   const sprite = sprites[spriteKey(teamIndex, view, action)];
   if (sprite && sprite.complete) {
-    const w = 34 * s;
-    const h = 54 * s;
+    const w = 54 * s;
+    const h = 86 * s;
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(facing || 1, 1);
@@ -77,30 +77,30 @@ function drawProcedural(ctx, x, y, s, teamIndex, view, action, facing, tMs) {
   const p = pose(action, tMs);
   const f = facing || 1;
 
-  const headR = 6 * s;
-  const headY = y - 34 * s;
-  const shoulderY = y - 26 * s;
-  const hipY = y - 13 * s;
-  const armLen = 11 * s;
-  const legLen = 13 * s;
+  const headR = 9 * s;
+  const headY = y - 52 * s;
+  const shoulderY = y - 40 * s;
+  const hipY = y - 20 * s;
+  const armLen = 16 * s;
+  const legLen = 19 * s;
 
   ctx.strokeStyle = color;
   ctx.lineCap = "round";
 
   // Legs (hips -> feet).
-  limb(ctx, x, hipY, p.legL, legLen, color, 3.5 * s, f);
-  limb(ctx, x, hipY, p.legR, legLen, color, 3.5 * s, f);
+  limb(ctx, x, hipY, p.legL, legLen, color, 5 * s, f);
+  limb(ctx, x, hipY, p.legR, legLen, color, 5 * s, f);
 
   // Torso.
-  ctx.lineWidth = 4 * s;
+  ctx.lineWidth = 6 * s;
   ctx.beginPath();
   ctx.moveTo(x, hipY);
   ctx.lineTo(x, shoulderY);
   ctx.stroke();
 
   // Arms (shoulders -> hands).
-  limb(ctx, x, shoulderY, p.armL, armLen, color, 3 * s, f);
-  limb(ctx, x, shoulderY, p.armR, armLen, color, 3 * s, f);
+  limb(ctx, x, shoulderY, p.armL, armLen, color, 4.5 * s, f);
+  limb(ctx, x, shoulderY, p.armR, armLen, color, 4.5 * s, f);
 
   // Head.
   ctx.fillStyle = color;
@@ -108,7 +108,7 @@ function drawProcedural(ctx, x, y, s, teamIndex, view, action, facing, tMs) {
   ctx.arc(x, headY, headR, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = "#0f172a";
-  ctx.lineWidth = 1.2 * s;
+  ctx.lineWidth = 1.8 * s;
   ctx.stroke();
 
   // Face (front view only): two eyes looking toward the camera.

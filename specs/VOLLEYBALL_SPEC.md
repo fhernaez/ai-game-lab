@@ -264,6 +264,9 @@ Requirements:
 - Players are drawn as **humanoid animated figures** (sprites stored in
   `app/web/static/img/players/`, one per movement — idle, run, serve, dig, set, spike,
   block, jump), with a procedural stick-figure fallback when no sprite is present.
+- The simulation **auto-plays on load** (the user can pause/resume/scrub); the server
+  steps **behind the end line** to serve (a sand free zone is drawn around the court),
+  and the figures and ball are drawn large enough to read the movements.
 
 ---
 

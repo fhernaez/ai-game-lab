@@ -121,7 +121,9 @@ Players are drawn as **humanoid figures** (`players.js`): a procedural stick fig
 whose limbs are posed per movement (with a front/back view and left/right mirroring),
 or a sprite loaded from `app/web/static/img/players/` (named
 `{team}-{view}-{action}.png`), which overrides the procedural figure. Drop new sprites
-in that folder to change the look without code.
+in that folder to change the look without code. The sim **auto-plays on load**, draws a
+sand free zone around the court so the server can step behind the end line, and keeps the
+figures/ball large enough to read.
 
 ### 4.6 The Advanced view
 

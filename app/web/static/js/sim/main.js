@@ -185,6 +185,8 @@ function logEvent(logEl, ev) {
     updateScrub();
     requestAnimationFrame(frame);
   }
+  // Auto-play on load; the user can pause/resume via the button.
+  setPlaying(true);
   requestAnimationFrame(frame);
 
   live.poll();

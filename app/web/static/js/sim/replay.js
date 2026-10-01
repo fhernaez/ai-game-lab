@@ -6,9 +6,9 @@
  * play / pause / seek / speed with a single applyProgress(t) method.
  */
 
-const FLIGHT_SCALE = 800;
-const MOVE_DUR = (speed) => Math.max(250, Math.min(1800, 900 / (speed || 0.5)));
-const FLIGHT_DUR = (ft) => Math.max(350, Math.min(2200, (ft || 0.5) * FLIGHT_SCALE));
+const FLIGHT_SCALE = 450;
+const MOVE_DUR = (speed) => Math.max(120, Math.min(900, 400 / (speed || 0.5)));
+const FLIGHT_DUR = (ft) => Math.max(300, Math.min(1400, (ft || 0.5) * FLIGHT_SCALE));
 
 // Home positions, aligned with engine._home_position (team -> slot -> [x, y]).
 const HOME = { 0: { 1: [2.5, 3.0], 2: [5.5, 5.0] }, 1: { 1: [2.5, 13.0], 2: [5.5, 11.0] } };
@@ -116,7 +116,7 @@ export class ReplayEngine {
             pos[kk] = [...HOME[ti][pl.slot]];
           });
         });
-        push("form", 600, { positions });
+        push("form", 350, { positions });
       } else if (ev.event_type === "DECISION") {
         const from = p.from_pos || pos[k];
         const to = p.move_to || (p.parsed && p.parsed.move_to) || from;
@@ -125,7 +125,7 @@ export class ReplayEngine {
         if (p.action_hint === "SERVE" && from) {
           const home = this._homeOf(p.team_name, p.slot);
           if (home && (from[0] !== home[0] || from[1] !== home[1])) {
-            push("move", 400, { teamName: p.team_name, slot: p.slot, from: home, to: from });
+            push("move", 250, { teamName: p.team_name, slot: p.slot, from: home, to: from });
           }
         }
         push("move", MOVE_DUR(speed), {
