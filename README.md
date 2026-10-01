@@ -40,6 +40,34 @@ specification.
 
 ---
 
+## Screenshots
+
+**Main page**
+
+![Main page](readme-img/Screenshot%20-%20Main%20page.png)
+
+**Team settings**
+
+![Team settings](readme-img/Screenshot%20Team%20Settings.png)
+
+**Default team settings**
+
+![Default team settings](readme-img/Screenshot%20-%20Default%20team%20settings.png)
+
+**Advanced settings**
+
+![Advanced settings](readme-img/Screenshot%20-%20Advanced%20settings.png)
+
+**Game simulation**
+
+![Game simulation](readme-img/Screenshot%20-%20Game%20Simulation.png)
+
+**Interaction log**
+
+![Interaction log](readme-img/Screenshot%20-%20Interaction%20Log.png)
+
+---
+
 ## Features
 
 - **A real beach-volleyball engine** — best of three sets, win-by-2, faults
