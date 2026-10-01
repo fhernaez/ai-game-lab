@@ -116,8 +116,10 @@ shows the game's rules, physics, and referee (read-only for students).
 
 ### 4.6 Strategy preset (Aggressive / Defensive / Neutral)
 
-The **Strategy preset** selector pre-fills both players' *brains* (persona, goal, skills,
-tools, and model parameters) with a ready-made tactical style:
+The **Strategy preset** selector pre-fills both players with a ready-made game plan: the
+*brains* (persona, goal, skills, tools, model parameters) **and** the *body* attribute
+allocation for the match's difficulty (easy / medium / hard), each within that
+difficulty's budget:
 
 - **Aggressive** — hard serves and spikes, high risk, high reward.
 - **Defensive** — dig everything, keep the ball alive, force the opponent's error.

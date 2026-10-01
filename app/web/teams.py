@@ -96,7 +96,11 @@ def _save_team(team, match):
             attrs[key] = body_parameters.clamp_slider(
                 _int(form.get(f"attr_{p.id}_{key}"), body.get("parameters", {}).get(key, 1))
             )
-        if archetype and archetype in body_parameters.ARCHETYPES:
+        if selected_strategy:
+            strat_attrs = strategies_mod.strategy_attributes(selected_strategy, match.difficulty)
+            if strat_attrs:
+                attrs = dict(strat_attrs)
+        elif archetype and archetype in body_parameters.ARCHETYPES:
             attrs = body_parameters.archetype_attributes(archetype)
         body["parameters"] = attrs
         body["actuators"] = form.getlist(f"actuators_{p.id}") or list(actuators.ACTUATOR_KEYS)

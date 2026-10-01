@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required
 
 from ..application import settings_service
+from ..domain.volleyball.body import parameters as body_parameters
 from ..domain.volleyball.brain import skills as skills_mod, tools as tools_mod
 from ..domain.volleyball.core import defaults, render as core_render
 from ..infrastructure.llm import provider_ids
@@ -96,8 +97,22 @@ def _float(raw, default):
         return default
 
 
+def _int(raw, default=1):
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return default
+
+
 def _strategy_from_form(prefix, form):
     """Read a strategy's fields from the form using the given field-name prefix."""
+    attributes = {}
+    for difficulty in ("easy", "medium", "hard"):
+        attrs = {}
+        for key in body_parameters.ATTRIBUTE_KEYS:
+            raw = form.get(f"{prefix}_attrs_{difficulty}_{key}")
+            attrs[key] = body_parameters.clamp_slider(_int(raw, 1)) if raw not in (None, "") else 1
+        attributes[difficulty] = attrs
     return {
         "name": form.get(f"{prefix}_name", "").strip(),
         "description": form.get(f"{prefix}_description", "").strip(),
@@ -110,6 +125,7 @@ def _strategy_from_form(prefix, form):
             "tools": form.getlist(f"{prefix}_tools"),
             "params": {"temperature": _float(form.get(f"{prefix}_temperature"), 0.7)},
         },
+        "attributes": attributes,
     }
 
 
@@ -151,5 +167,8 @@ def strategies():
         strategies=settings_service.get_strategies(),
         skill_options=skills_mod.DEFAULT_SKILLS,
         tool_keys=tools_mod.TOOL_KEYS,
+        attribute_keys=body_parameters.ATTRIBUTE_KEYS,
+        attribute_labels=body_parameters.ATTRIBUTE_LABELS,
+        budgets=body_parameters.DIFFICULTY_BUDGETS,
         is_admin=is_admin,
     )

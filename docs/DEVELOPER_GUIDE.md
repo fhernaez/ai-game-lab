@@ -132,11 +132,14 @@ Editing happens through the structured form in `teams/configure.html`.
 
 ### 4.7 Strategy presets
 
-`brain/strategies.py` defines three brain-level presets (Aggressive / Defensive /
-Neutral) that pre-fill a player's persona, goal, skills, tools, and model parameters.
-The admin manages them in **Settings → Strategy presets** (`strategy_presets`
-`AppSetting`); the team configuration applies a chosen strategy to both players at save
-time. This is the brain counterpart to the body **archetypes** in `body/parameters.py`.
+`brain/strategies.py` defines three presets (Aggressive / Defensive / Neutral), each a
+complete game plan: a `brain` (persona, goal, skills, tools, model parameters) plus an
+`attributes` map with a body allocation per difficulty (easy / medium / hard) that stays
+within that difficulty's budget. The admin manages them in **Settings → Strategy
+presets** (`strategy_presets` `AppSetting`); the team configuration applies a chosen
+strategy to both players at save time, using the allocation for the match difficulty.
+`strategy_attributes(strategy, difficulty)` returns that allocation; `apply_strategy`
+merges the brain fields.
 
 ## 5. Conventions
 

@@ -33,7 +33,7 @@ computed from its two players' attribute sliders at validation time, not stored.
 `configuration_json.strategy` is the team's free-text strategy notes (shared to the
 engine as `instructions`); `configuration_json.strategy_preset` holds the selected
 strategy id. On save, the preset's brain fields (persona, goal, skills, tools, params)
-are applied to both players' `brain` config.
+and its body attribute allocation for the match difficulty are applied to both players.
 
 ## Player (agent)
 

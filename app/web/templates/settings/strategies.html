@@ -2,8 +2,29 @@
 {% block title %}Strategies — AI Game Lab{% endblock %}
 {% block content %}
 <h1>Strategy presets</h1>
-<p class="muted">Brain-level presets that pre-fill a player's persona, goal, skills, tools, and
-model parameters. The three defaults are seeded; you can add or edit alternatives.</p>
+<p class="muted">Each strategy is a complete game plan: it pre-fills a player's brain (persona,
+goal, skills, tools, model parameters) <strong>and</strong> a body attribute allocation per match
+difficulty (easy / medium / hard) that stays within that difficulty's point-buy budget.</p>
+
+{% macro attribute_grid(prefix, s) %}
+  {% set attrs = s.get('attributes') or {} %}
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 0.5rem;">
+    {% for difficulty in ['easy', 'medium', 'hard'] %}
+    {% set dattrs = attrs.get(difficulty) or {} %}
+    <div>
+      <h4>{{ difficulty | capitalize }} <span class="muted">(budget {{ budgets[difficulty] }})</span></h4>
+      {% for key in attribute_keys %}
+      <label style="display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.35rem;">
+        <span class="muted small">{{ attribute_labels[key] }}</span>
+        <input type="number" min="1" max="10" style="width: 52px;"
+               name="{{ prefix }}_attrs_{{ difficulty }}_{{ key }}"
+               value="{{ dattrs.get(key, 1) }}">
+      </label>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+{% endmacro %}
 
 {% if is_admin %}
 <form method="post">
@@ -60,6 +81,9 @@ model parameters. The three defaults are seeded; you can add or edit alternative
       </label>
       {% endfor %}
     </div>
+
+    <label>Body attributes by difficulty</label>
+    {{ attribute_grid(sid, s) }}
   </div>
   {% endfor %}
 
@@ -99,6 +123,8 @@ model parameters. The three defaults are seeded; you can add or edit alternative
       <label class="check"><input type="checkbox" name="new_tools" value="{{ t }}"><span>{{ t }}</span></label>
       {% endfor %}
     </div>
+    <label>Body attributes by difficulty</label>
+    {{ attribute_grid('new', {}) }}
   </div>
 
   <div class="row" style="margin-bottom: 1rem;">

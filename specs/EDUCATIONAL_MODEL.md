@@ -35,8 +35,9 @@ These two (`what` and `effect`) are shown together everywhere.
 8. **Advanced view** — edit the agent's files (persona, skills, tools, body) and read the
    core files.
 
-**Strategies** are brain-level presets (Aggressive / Defensive / Neutral, admin-extensible)
-that pre-fill a player's persona, goal, skills, tools, and model parameters — the tactical
+**Strategies** are complete presets (Aggressive / Defensive / Neutral, admin-extensible)
+that pre-fill a player's persona, goal, skills, tools, and model parameters, plus a body
+attribute allocation per difficulty that fits that difficulty's budget — the tactical
 counterpart to the body archetypes. The **humanoid player figures** in the simulation make
 each movement (run, jump, serve, dig, set, spike, block) visually recognizable, helping
 students connect a decision to the physical action.

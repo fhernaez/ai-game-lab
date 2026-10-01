@@ -548,6 +548,7 @@ def test_dig_set_emit_trajectories(app):
 
 def test_strategy_presets(app):
     from app.application import settings_service
+    from app.domain.volleyball.body import parameters
     from app.domain.volleyball.brain import strategies as strategies_mod
 
     with app.app_context():
@@ -563,6 +564,14 @@ def test_strategy_presets(app):
         assert brain["tools"] == agg["brain"]["tools"]
         assert brain["params"]["temperature"] == 0.9
         assert brain["skills"]  # resolved to full skill dicts
+
+        # Each default strategy has a body allocation per difficulty, within budget.
+        for sid in ("aggressive", "defensive", "neutral"):
+            strat = strats[sid]
+            for difficulty, budget in parameters.DIFFICULTY_BUDGETS.items():
+                attrs = strategies_mod.strategy_attributes(strat, difficulty)
+                assert attrs is not None, f"{sid} missing {difficulty}"
+                assert parameters.attributes_cost(attrs) <= budget, f"{sid} {difficulty} over budget"
 
         # Admin can add a custom strategy; reset restores the defaults.
         settings_service.set_strategies(

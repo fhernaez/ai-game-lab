@@ -72,17 +72,21 @@ You are at the net defending a fast attack. Jump to block; a clean block wins th
 a block touch counts as your first touch.
 ```
 
-## Strategy presets (brain)
+## Strategy presets (brain + body per difficulty)
 
 ```text
 Aggressive  — persona "fearless attacker", goal "win fast with a hard attack",
               skills [smart_serve, placement_attack], tools [serve, spike, place, block],
-              temperature 0.9.
+              temperature 0.9; body favors jump + power at every budget.
 Defensive   — persona "patient defender", goal "keep the ball alive and force the error",
               skills [deep_defense, smart_serve], tools [serve, dig, set, place],
-              temperature 0.5.
-Neutral     — balanced: all three skills, all six tools, temperature 0.7.
+              temperature 0.5; body favors speed + receive at every budget.
+Neutral     — balanced: all three skills, all six tools, temperature 0.7;
+              body balanced at every budget.
 ```
+
+Each strategy also defines a body attribute allocation per difficulty (easy 45 / medium
+25 / hard 12 points), so the same plan fits any budget.
 
 ## Educational explanations (UI)
 

@@ -202,19 +202,23 @@ reserved for a future version.)
 - **THE SHARP-SHOOTER (Tactician)** — finesse over force, placements over power.
   Allocates: Sniper Vision, Set Precision, Dig & Serve Receive, Sand Speed.
 
-### 6.2 Strategy presets (brain setup, applies to both players)
+### 6.2 Strategy presets (complete game plan, applies to both players)
 
-Alongside the body **archetypes**, the user picks a **strategy** that pre-fills the
-players' *brains* (persona, goal, skills, tools, and model parameters). Three defaults
-are seeded, and the admin can create more:
+The user picks a **strategy** that pre-fills the players' *brains* (persona, goal,
+skills, tools, and model parameters) **and** a *body* attribute allocation per match
+difficulty (easy / medium / hard) that stays within that difficulty's point-buy budget.
+Three defaults are seeded, and the admin can create more:
 
 - **Aggressive** — attack-first: hard serves and spikes, high risk. Persona "fearless
   attacker", goal "win fast with a hard attack", skills `smart_serve`/`placement_attack`,
-  tools `serve, spike, place, block`, higher `temperature`.
+  tools `serve, spike, place, block`, higher `temperature`; body favors jump and power
+  at every budget.
 - **Defensive** — defense-first: dig everything, force the error. Persona "patient
   defender", goal "keep the ball alive", skills `deep_defense`/`smart_serve`, tools
-  `serve, dig, set, place`, lower `temperature`.
-- **Neutral** — balanced, all three skills and all six tools, default `temperature`.
+  `serve, dig, set, place`, lower `temperature`; body favors speed and receive at every
+  budget.
+- **Neutral** — balanced, all three skills and all six tools, default `temperature`;
+  body balanced at every budget.
 
 Strategies are stored in the `strategy_presets` AppSetting and managed by the admin.
 
