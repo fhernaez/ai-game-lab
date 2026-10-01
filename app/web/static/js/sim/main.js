@@ -115,6 +115,7 @@ function logEvent(logEl, ev) {
   scrub.max = engine.duration || 1;
 
   let playing = false;
+  let trail = [];
   const setPlaying = (p) => {
     playing = p;
     playBtn.textContent = p ? "Pause" : "Play";
@@ -129,16 +130,28 @@ function logEvent(logEl, ev) {
     if (!engine.duration) return;
     if (playing) setPlaying(false);
     else {
-      if (engine.t >= engine.duration) engine.seek(0);
+      if (engine.t >= engine.duration) {
+        engine.seek(0);
+        trail = [];
+      }
       setPlaying(true);
     }
   });
   speedSel.addEventListener("change", () => {
     engine.speed = parseFloat(speedSel.value || "1");
   });
-  scrub.addEventListener("input", () => engine.seek(parseFloat(scrub.value)));
-  stepBack.addEventListener("click", () => engine.seek(engine.t - 400));
-  stepFwd.addEventListener("click", () => engine.seek(engine.t + 400));
+  scrub.addEventListener("input", () => {
+    trail = [];
+    engine.seek(parseFloat(scrub.value));
+  });
+  stepBack.addEventListener("click", () => {
+    trail = [];
+    engine.seek(engine.t - 400);
+  });
+  stepFwd.addEventListener("click", () => {
+    trail = [];
+    engine.seek(engine.t + 400);
+  });
 
   const live = new LiveClient(matchId, {
     onEvents: (events) => {
@@ -162,8 +175,10 @@ function logEvent(logEl, ev) {
       const nt = Math.min(engine.duration, engine.t + dt * engine.speed);
       engine.applyProgress(nt);
       if (nt >= engine.duration) setPlaying(false);
+      trail.push({ x: engine.state.ball.x, y: engine.state.ball.y, z: engine.state.ball.z });
+      if (trail.length > 14) trail.shift();
     }
-    renderer.draw(engine.state, engine.t);
+    renderer.draw(engine.state, engine.t, trail);
     updateScoreboard(scoreboardEl, engine.state);
     updateScrub();
     requestAnimationFrame(frame);

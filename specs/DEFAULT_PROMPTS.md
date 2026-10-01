@@ -16,6 +16,13 @@ GOAL
 TASK
 {{brain.task}}
 
+COURT COORDINATES (meters)
+- x = across the court: 0 (left sideline) to 8 (right sideline).
+- y = down the court: 0 (your end line) to 16 (the far end line).
+- The net is at y = 8 (2.43 m high).
+- target = where the ball lands (always in the OPPONENT's half).
+- move_to = where you run (always in YOUR half).
+
 SKILLS (what you know)
 {{skills}}
 

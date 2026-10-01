@@ -94,6 +94,11 @@ class MatchEngine:
         receiver_team = 1 - server_team
         rally_history = []
 
+        # Everyone returns to their base formation at the start of each rally.
+        for ti, team in enumerate(self.teams):
+            for p in team["players"]:
+                self.positions[(ti, p["slot"])] = self._home_position(ti, p["slot"])
+
         # SERVE
         server = self._pick_player(server_team, state)
         origin = self._serve_origin(state.sides[server_team])
@@ -244,6 +249,8 @@ class MatchEngine:
         events.append(ev.make_event(ev.POINT, team=team_index, reason=reason, payload=state.to_dict()))
 
     def _trajectory(self, events, from_ball, to_ball, flight_time, offset, team, slot):
+        if isinstance(from_ball, (list, tuple)):
+            from_ball = {"x": from_ball[0], "y": from_ball[1], "z": 0.0}
         events.append(
             ev.make_event(
                 ev.TRAJECTORY, from_ball=from_ball, ball=to_ball,

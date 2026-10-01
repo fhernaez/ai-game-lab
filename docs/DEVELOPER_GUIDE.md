@@ -63,7 +63,8 @@ touch. The core scores when the ball lands.
 
 - `core/physics.py` — trajectory (`resolve_shot`), `flight_time`, `reach_time`/`can_reach`.
 - `brain/decision.py` — the message + decision protocol (ball hit **and** the player's own
-  `move_to`/`move_speed` movement) and the shared-rally-context prompt.
+  `move_to`/`move_speed` movement) and the shared-rally-context prompt, which includes an
+  explicit court-coordinate guide so models return in-bounds targets.
 - `events.py` — `DECISION` (with `from_pos`, `move_to`, `move_speed`), `TRAJECTORY`,
   `INTERCEPT`, `BLOCK`, `POINT`, etc.
 - Every agent's message is accumulated and shared to later agents in the rally.

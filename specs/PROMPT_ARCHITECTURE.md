@@ -9,11 +9,12 @@ The brain's prompt is assembled from controlled sections. It tells the LLM *who*
 1.  Persona / system instructions     who the player is
 2.  Goal                              win this point / set
 3.  Task                              the current job (serve / defend / attack)
-4.  Skills                            the playbook (what the player knows)
-5.  Tools                             what the player can do (and its permissions)
-6.  Sensors                           what the player can see (game state, rally history)
-7.  Memory                            the current rally messages (short-term)
-8.  Output contract                   return a message + structured decision
+4.  Court coordinates                 the x/y/z axes, the net, and the target/move rules
+5.  Skills                            the playbook (what the player knows)
+6.  Tools                             what the player can do (and its permissions)
+7.  Sensors                           what the player can see (game state, rally history)
+8.  Memory                            the current rally messages (short-term)
+9.  Output contract                   return a message + structured decision
 ```
 
 ## Example conceptual prompt
@@ -29,6 +30,13 @@ Keep the ball in play and set up the partner for a clean attack.
 
 TASK
 Defend and pass on the first touch.
+
+COURT COORDINATES (meters)
+- x = across the court: 0 (left sideline) to 8 (right sideline).
+- y = down the court: 0 (your end line) to 16 (the far end line).
+- The net crosses the court at y = 8 and is 2.43 m high.
+- target = where the ball lands (always in the OPPONENT's half).
+- move_to = where you run (always in YOUR half).
 
 SKILLS (what you know)
 - Deep defense: drop back early and read the hitter's shoulder.

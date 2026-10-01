@@ -103,6 +103,9 @@ LLM "knows" the strategy.
   opponent's hidden attributes.
 - **Memory** — a small short-term memory: the messages of the current rally. There is no
   long-term memory in this version.
+- **Prompt** — assembled from the pieces above plus an explicit court-coordinate guide
+  (`x` 0..8 across, `y` 0..16 down, net at `y = 8`), so the model returns in-bounds
+  targets and legal movement.
 
 ---
 

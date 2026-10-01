@@ -10,6 +10,15 @@ const FLIGHT_SCALE = 800;
 const MOVE_DUR = (speed) => Math.max(250, Math.min(1800, 900 / (speed || 0.5)));
 const FLIGHT_DUR = (ft) => Math.max(350, Math.min(2200, (ft || 0.5) * FLIGHT_SCALE));
 
+// Home positions, aligned with engine._home_position (team -> slot -> [x, y]).
+const HOME = { 0: { 1: [2.5, 3.0], 2: [5.5, 5.0] }, 1: { 1: [2.5, 13.0], 2: [5.5, 11.0] } };
+
+function normalizePos(v) {
+  if (!v) return null;
+  if (Array.isArray(v)) return { x: v[0], y: v[1], z: 0 };
+  return v;
+}
+
 export class MatchState {
   constructor(teams) {
     this.teams = teams;
@@ -18,12 +27,12 @@ export class MatchState {
     this.score = { sets: [0, 0], points: [0, 0], server: 0 };
     this.winner = null;
     this.lastActor = null;
+    this.server = null;
     this.pulse = {};
 
-    const homes = { 0: [[2, 3], [6, 5]], 1: [[2, 11], [6, 13]] };
     teams.forEach((team, ti) => {
-      (team.players || []).forEach((p, pi) => {
-        const home = homes[ti][pi % 2];
+      (team.players || []).forEach((p) => {
+        const home = HOME[ti][p.slot];
         this.players.push({
           slot: p.slot,
           teamIndex: ti,
@@ -66,8 +75,16 @@ export class ReplayEngine {
   build() {
     const segments = [];
     const pos = {};
-    let cursor = 0;
     const key = (teamName, slot) => `${teamName}::${slot}`;
+
+    // Seed tracked positions with home formation.
+    this.teams.forEach((team, ti) => {
+      (team.players || []).forEach((p) => {
+        pos[key(team.name, p.slot)] = [...HOME[ti][p.slot]];
+      });
+    });
+
+    let cursor = 0;
     const push = (type, dur, data) => {
       segments.push({ type, start: cursor, dur, end: cursor + dur, ...data });
       cursor += dur;
@@ -77,23 +94,37 @@ export class ReplayEngine {
       const p = ev.payload || {};
       const k = key(p.team_name, p.slot);
 
-      if (ev.event_type === "DECISION") {
+      if (ev.event_type === "RALLY_STARTED") {
+        const positions = [];
+        this.teams.forEach((team, ti) => {
+          (team.players || []).forEach((pl) => {
+            const kk = key(team.name, pl.slot);
+            positions.push({ teamName: team.name, slot: pl.slot, from: pos[kk], to: HOME[ti][pl.slot] });
+            pos[kk] = [...HOME[ti][pl.slot]];
+          });
+        });
+        push("form", 600, { positions });
+      } else if (ev.event_type === "DECISION") {
         const from = p.from_pos || pos[k];
         const to = p.move_to || (p.parsed && p.parsed.move_to) || from;
         const speed = p.move_speed || (p.parsed && p.parsed.move_speed) || 0.5;
-        push("move", MOVE_DUR(speed), {
-          teamName: p.team_name, slot: p.slot, from, to, actor: true,
-        });
+        // Server visibly steps back to the line before serving.
+        if (p.action_hint === "SERVE" && from) {
+          const home = this._homeOf(p.team_name, p.slot);
+          if (home && (from[0] !== home[0] || from[1] !== home[1])) {
+            push("move", 400, { teamName: p.team_name, slot: p.slot, from: home, to: from });
+          }
+        }
+        push("move", MOVE_DUR(speed), { teamName: p.team_name, slot: p.slot, from, to, actor: true, serve: p.action_hint === "SERVE" });
         pos[k] = to;
       } else if (ev.event_type === "TRAJECTORY") {
-        const from = p.from_ball || { x: 4, y: 8, z: 0 };
+        const from = normalizePos(p.from_ball) || { x: 4, y: 8, z: 0 };
         const to = p.ball || from;
-        push("ball", FLIGHT_DUR(p.flight_time), { from, to });
+        const peak = Math.max(2.0, (p.flight_time || 0.5) * 3.5);
+        push("ball", FLIGHT_DUR(p.flight_time), { from, to, peak });
       } else if (ev.event_type === "INTERCEPT") {
         const from = pos[k] || p.at;
-        push("move", MOVE_DUR(0.7), {
-          teamName: p.team_name, slot: p.slot, from, to: p.at,
-        });
+        push("move", MOVE_DUR(0.7), { teamName: p.team_name, slot: p.slot, from, to: p.at });
         pos[k] = p.at;
       } else if (ev.event_type === "BLOCK") {
         push("pulse", 350, { teamName: p.team_name, slot: p.slot });
@@ -106,6 +137,13 @@ export class ReplayEngine {
       }
     }
     return segments;
+  }
+
+  _homeOf(teamName, slot) {
+    const team = this.teams.find((t) => t.name === teamName);
+    if (!team) return null;
+    const ti = this.teams.indexOf(team);
+    return HOME[ti][slot];
   }
 
   applySegment(seg, local) {
@@ -121,13 +159,23 @@ export class ReplayEngine {
         st.setPos(idx, to[0], to[1]);
       }
       if (seg.actor) st.lastActor = idx;
+      if (seg.serve) st.server = idx;
+    } else if (seg.type === "form") {
+      (seg.positions || []).forEach((pp) => {
+        const idx = st.find(pp.teamName, pp.slot);
+        if (idx < 0) return;
+        if (pp.from && pp.to) {
+          st.setPos(idx, pp.from[0] + (pp.to[0] - pp.from[0]) * local, pp.from[1] + (pp.to[1] - pp.from[1]) * local);
+        } else if (pp.to) {
+          st.setPos(idx, pp.to[0], pp.to[1]);
+        }
+      });
     } else if (seg.type === "ball") {
       const f = seg.from;
       const t = seg.to;
       st.ball.x = f.x + (t.x - f.x) * local;
       st.ball.y = f.y + (t.y - f.y) * local;
-      const peak = Math.max(1.5, (f.z || 0) + (t.z || 0) + 1.0);
-      st.ball.z = local >= 1 ? t.z || 0 : Math.sin(Math.PI * local) * peak;
+      st.ball.z = local >= 1 ? t.z || 0 : Math.sin(Math.PI * local) * seg.peak;
     } else if (seg.type === "pulse") {
       const idx = st.find(seg.teamName, seg.slot);
       if (idx >= 0) st.pulse[idx] = seg.start;

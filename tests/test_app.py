@@ -224,12 +224,79 @@ def test_engine_movement_and_faults(app):
         for ev in events
         if ev["event_type"] == "TRAJECTORY" and ev["payload"].get("slot") is not None
     ]
-    assert any(fb[1] < 0 or fb[1] > 16 for fb in serve_origins)
+    assert any(fb["y"] < 0 or fb["y"] > 16 for fb in serve_origins)
 
     # block events and fault reasons are present
     assert any(ev["event_type"] == "BLOCK" for ev in events)
     reasons = {ev["payload"].get("reason") for ev in events if ev["event_type"] == "POINT"}
     assert "landed" in reasons
+
+
+def test_trajectory_from_ball_is_object(app):
+    from app.domain.volleyball.body.parameters import default_parameters
+    from app.domain.volleyball.engine import MatchEngine
+    from app.infrastructure.llm.mock import MockLLMProvider
+
+    def resolve(ref):
+        return MockLLMProvider(), "mock-model"
+
+    teams = []
+    for ti in range(2):
+        players = [
+            {"slot": s, "name": f"P{s}", "attributes": {k: 5 for k in default_parameters()}, "brain": {}}
+            for s in (1, 2)
+        ]
+        teams.append({"name": f"T{ti}", "instructions": "", "players": players})
+
+    engine = MatchEngine(teams, resolve, seed=7)
+    events, _, _ = engine.run()
+
+    trajs = [ev for ev in events if ev["event_type"] == "TRAJECTORY"]
+    assert trajs
+    for ev in trajs:
+        fb = ev["payload"]["from_ball"]
+        assert isinstance(fb, dict), fb
+        assert set(("x", "y", "z")) <= set(fb.keys()), fb
+        assert isinstance(ev["payload"]["ball"], dict)
+
+
+def test_engine_resets_formation_each_rally(app):
+    from app.domain.volleyball.body.parameters import default_parameters
+    from app.domain.volleyball.core.world import CourtState
+    from app.domain.volleyball.engine import MatchEngine
+    from app.infrastructure.llm.mock import MockLLMProvider
+
+    def resolve(ref):
+        return MockLLMProvider(), "mock-model"
+
+    teams = []
+    for ti in range(2):
+        players = [
+            {"slot": s, "name": f"P{s}", "attributes": {k: 5 for k in default_parameters()}, "brain": {}}
+            for s in (1, 2)
+        ]
+        teams.append({"name": f"T{ti}", "instructions": "", "players": players})
+
+    engine = MatchEngine(teams, resolve, seed=3)
+
+    # The sim's home formation must match these exact values.
+    assert engine._home_position(0, 1) == [2.5, 3.0]
+    assert engine._home_position(0, 2) == [5.5, 5.0]
+    assert engine._home_position(1, 1) == [2.5, 13.0]
+    assert engine._home_position(1, 2) == [5.5, 11.0]
+
+    state = CourtState()
+    state.server = 0
+    # Corrupt the tracked positions to simulate pre-fix stale drift.
+    for ti in range(2):
+        for s in (1, 2):
+            engine.positions[(ti, s)] = [99.0, 99.0]
+
+    engine._play_rally(state, [], [])
+
+    # The rally-start reset must have overwritten the corruption.
+    for (ti, s), (x, y) in engine.positions.items():
+        assert x != 99.0 and y != 99.0, f"player {(ti, s)} not reset: {x}, {y}"
 
 
 # ---------------------------------------------------------------------------
@@ -408,3 +475,20 @@ def test_what_effect_present():
         assert skill["what"] and skill["effect"], skill["id"]
     for key, spec in defaults.KNOBS.items():
         assert spec["what"] and spec["effect"], key
+
+
+def test_prompt_explains_coordinates():
+    from app.domain.volleyball.brain import decision
+    from app.domain.volleyball.core.world import CourtState
+
+    brain = {"persona": "", "goal": "", "tools": [], "skills": [], "sensors": [], "params": {}}
+    messages = decision.build_decision_prompt(brain, "T", "Player 1", 1, CourtState(), "SERVE", [], 0)
+    user = messages[1]["content"]
+
+    assert "COURT COORDINATES" in user
+    assert "x = across the court" in user
+    assert "net crosses the court at y = 8" in user
+    assert "always in the OPPONENT" in user
+    assert "always in YOUR half" in user
+    # the ball is now labelled x/y/z explicitly
+    assert "ball (x=" in user

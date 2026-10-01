@@ -174,6 +174,7 @@ see its full interaction log and final state. This is where teachers review clas
 | **Attribute** | A physical/technical skill (0.1–1.0) that drives the physics. |
 | **Model** | An LLM, referenced `provider:model`. |
 | **Decision** | A structured action `{action, power, target}` produced by the LLM. |
+| **Court coordinates** | `x` 0..8 across the court, `y` 0..16 down the court, net at `y = 8`. |
 | **Interaction log** | The full trace of every decision and outcome. |
 
 ---

@@ -1,4 +1,14 @@
-"""The brain's decision protocol: message + ball hit + own movement."""
+"""The brain's decision protocol: a message + a structured ball hit + movement.
+
+This module has two jobs:
+
+1. ``parse_decision`` — validate and clamp whatever JSON the LLM returns so a
+   malformed or out-of-range decision can never crash the engine.
+2. ``build_decision_prompt`` — assemble the prompt the LLM receives. It is built
+   from labelled sections (persona, goal, task, skills, tools, sensors, memory)
+   plus an explicit **court-coordinate guide**, because models otherwise swap the
+   x/y axes and produce out-of-range coordinates.
+"""
 
 from . import skills, tools
 from .sensors import render_sensors
@@ -14,13 +24,31 @@ DEFAULT_DECISION = {
     "move_speed": 0.5,
 }
 
+# Court-coordinate guide, injected into every prompt. The axes are spelled out
+# explicitly because LLMs frequently return out-of-range coordinates (e.g. x > 8)
+# or aim a shot into their own half. See VOLLEYBALL_SPEC.md §2 for the canonical
+# coordinate system.
+COORDINATE_GUIDE = (
+    "COURT COORDINATES (meters):\n"
+    "- x = across the court: 0 (left sideline) to 8 (right sideline).\n"
+    "- y = down the court: 0 (your end line) to 16 (the far end line).\n"
+    "- The net crosses the court at y = 8 and is 2.43 m high.\n"
+    "- Ball positions are written (x, y, z) where z is the height above the sand.\n"
+    "- target = where the ball should land: always in the OPPONENT's half.\n"
+    "- move_to = where you run: always in YOUR half (never cross y = 8)."
+)
 
-def _clamp(v, lo, hi):
-    return max(lo, min(hi, v))
+
+def _clamp(value, lo, hi):
+    return max(lo, min(hi, value))
 
 
 def parse_decision(parsed, fallback=None):
-    """Validate and clamp a parsed LLM output; never raises."""
+    """Validate and clamp a parsed LLM output; never raises.
+
+    Returns a fully-formed decision dict, substituting ``fallback`` (or the
+    DEFAULT_DECISION) for any missing or invalid field.
+    """
     fallback = fallback or dict(DEFAULT_DECISION)
     if not isinstance(parsed, dict):
         return dict(fallback)
@@ -57,6 +85,7 @@ def parse_decision(parsed, fallback=None):
 
 
 def _point(value, default):
+    """Coerce a JSON value into an in-bounds [x, y] court point."""
     if not (isinstance(value, (list, tuple)) and len(value) >= 2):
         return [default[0], default[1]]
     try:
@@ -68,16 +97,21 @@ def _point(value, default):
 
 
 def build_decision_prompt(brain, team_name, player_name, slot, state, action_hint, rally_history, team_index=None):
-    """Assemble the brain's prompt from persona/goal/task/skills/tools/sensors."""
+    """Assemble the brain's prompt as (system, user) messages.
+
+    The user message is built from short, labelled sections so the model always
+    knows who it is, what it can do/know/see, where it is on the court, and the
+    exact JSON it must return.
+    """
     tool_list = ", ".join(brain.get("tools") or list(tools.TOOL_KEYS))
     skill_text = skills.render_skills(brain.get("skills") or skills.load_default_skills())
     sensor_text = render_sensors(brain.get("sensors"))
 
+    # Which half the team defends; the model's move_to must stay inside it.
     half_line = ""
     if team_index is not None:
-        own_half = state.sides[team_index]
-        side = "LEFT (y 0..8)" if own_half == 0 else "RIGHT (y 8..16)"
-        half_line = f"YOUR HALF: you are on the {side}. Your move_to must stay inside your own half.\n\n"
+        side = "LEFT (y 0..8)" if state.sides[team_index] == 0 else "RIGHT (y 8..16)"
+        half_line = f"YOUR HALF: you defend the {side}. Keep move_to inside your own half.\n\n"
 
     system = (
         "You are an AI beach-volleyball player. Return a JSON object with a short "
@@ -88,7 +122,8 @@ def build_decision_prompt(brain, team_name, player_name, slot, state, action_hin
         [
             f"TEAM: {team_name}",
             f"YOU ARE: {player_name} (slot {slot})",
-            half_line + f"PERSONA\n{brain.get('persona', '')}",
+            half_line + COORDINATE_GUIDE,
+            f"PERSONA\n{brain.get('persona', '')}",
             f"GOAL\n{brain.get('goal', '')}",
             f"TASK\n{action_hint}",
             f"SKILLS (what you know)\n{skill_text}",
@@ -111,6 +146,6 @@ def _render_state(state):
         f"set {state.current_set}, points {state.set_points[0]}-{state.set_points[1]}, "
         f"sets {state.sets_won[0]}-{state.sets_won[1]}, server team {state.server}, "
         f"touches {state.touches}, "
-        f"ball ({state.ball['x']:.1f}, {state.ball['y']:.1f}, {state.ball['z']:.1f}), "
+        f"ball (x={state.ball['x']:.1f}, y={state.ball['y']:.1f}, z={state.ball['z']:.1f}), "
         f"flight time {state.flight_time:.2f}s"
     )
