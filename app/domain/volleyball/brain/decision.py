@@ -25,18 +25,25 @@ DEFAULT_DECISION = {
 }
 
 # Court-coordinate guide, injected into every prompt. The axes are spelled out
-# explicitly because LLMs frequently return out-of-range coordinates (e.g. x > 8)
-# or aim a shot into their own half. See VOLLEYBALL_SPEC.md §2 for the canonical
-# coordinate system.
-COORDINATE_GUIDE = (
-    "COURT COORDINATES (meters):\n"
-    "- x = across the court: 0 (left sideline) to 8 (right sideline).\n"
-    "- y = down the court: 0 (your end line) to 16 (the far end line).\n"
-    "- The net crosses the court at y = 8 and is 2.43 m high.\n"
-    "- Ball positions are written (x, y, z) where z is the height above the sand.\n"
-    "- target = where the ball should land: always in the OPPONENT's half.\n"
-    "- move_to = where you run: always in YOUR half (never cross y = 8)."
-)
+# **side-specifically** because LLMs otherwise confuse which half they defend and aim
+# into their own side (e.g. a right-side player targeting y = 14 instead of the
+# opponent's y 0..8). See VOLLEYBALL_SPEC.md §2 for the canonical coordinate system.
+def _coordinate_guide(own_half=None):
+    """Return the coordinate guide for the given half (0 = LEFT, 1 = RIGHT)."""
+    if own_half == 1:
+        own, end_line, opponent = "RIGHT (y 8..16)", "y = 16", "y 0..8"
+    else:
+        own, end_line, opponent = "LEFT (y 0..8)", "y = 0", "y 8..16"
+    return (
+        "COURT COORDINATES (meters):\n"
+        "- x = across the court: 0 (left sideline) to 8 (right sideline).\n"
+        "- y = down the court: 0 to 16. The net is at y = 8 (2.43 m high).\n"
+        f"- YOU defend the {own}. Your end line is {end_line}.\n"
+        f"- The OPPONENT's half is {opponent} — aim every target there.\n"
+        "- Ball positions are written (x, y, z) where z is the height above the sand.\n"
+        "- target = where the ball should land: always in the OPPONENT's half.\n"
+        "- move_to = where you run: always in YOUR half (never cross y = 8)."
+    )
 
 
 def _clamp(value, lo, hi):
@@ -108,9 +115,10 @@ def build_decision_prompt(brain, team_name, player_name, slot, state, action_hin
     sensor_text = render_sensors(brain.get("sensors"))
 
     # Which half the team defends; the model's move_to must stay inside it.
+    own_half = state.sides[team_index] if team_index is not None else None
     half_line = ""
-    if team_index is not None:
-        side = "LEFT (y 0..8)" if state.sides[team_index] == 0 else "RIGHT (y 8..16)"
+    if own_half is not None:
+        side = "LEFT (y 0..8)" if own_half == 0 else "RIGHT (y 8..16)"
         half_line = f"YOUR HALF: you defend the {side}. Keep move_to inside your own half.\n\n"
 
     system = (
@@ -122,7 +130,7 @@ def build_decision_prompt(brain, team_name, player_name, slot, state, action_hin
         [
             f"TEAM: {team_name}",
             f"YOU ARE: {player_name} (slot {slot})",
-            half_line + COORDINATE_GUIDE,
+            half_line + _coordinate_guide(own_half),
             f"PERSONA\n{brain.get('persona', '')}",
             f"GOAL\n{brain.get('goal', '')}",
             f"TASK\n{action_hint}",

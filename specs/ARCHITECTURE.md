@@ -46,7 +46,7 @@ and the graphical simulation (client-side). No game rules or physics here.
 
 Workflows: create/invite/accept/ready matches, configure teams (validate budget),
 run the match (enqueue to worker), persist the interaction log, expose history, and
-manage settings (including the core files the admin can edit).
+manage settings (including the core files and the strategy presets the admin can edit).
 
 ### Domain layer (brain / body / core)
 
@@ -100,4 +100,6 @@ model, params, attributes, `skill_id`/`tool_id`), `TRAJECTORY`, `INTERCEPT`, `BL
 
 `app/web/static/js/sim/` plays the event log sequentially: the ball flies
 over its flight time (larger when high), players move smoothly to their `move_to`, and
-the serve starts behind the end line. It is self-contained and replaceable.
+the serve starts behind the end line. Players are humanoid animated figures (sprites in
+`app/web/static/img/players/`, with a procedural stick-figure fallback). It is
+self-contained and replaceable.

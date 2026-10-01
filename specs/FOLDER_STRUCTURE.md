@@ -33,14 +33,15 @@ ai-game-lab/
 │   │   │   └── teams/advanced.html       # advanced file view
 │   │   └── static/
 │   │       ├── css/app.css
-│   │       └── js/sim/    # independent simulation module
+│   │       ├── img/players/       # humanoid sprites (idle/run/serve/dig/set/spike/block/jump)
+│   │       └── js/sim/            # independent simulation module (court/renderer/replay/live/main/players)
 │   │
 │   ├── application/
 │   │   ├── matchmaking_service.py
 │   │   ├── presence_service.py
 │   │   ├── team_service.py      # attributes, point-buy, archetypes, budget
 │   │   ├── match_service.py     # create/start/run/stop/delete, history
-│   │   ├── settings_service.py  # provider models + core files (admin)
+│   │   ├── settings_service.py  # provider models + core files + strategies (admin)
 │   │   └── seed.py
 │   │
 │   ├── domain/
@@ -48,6 +49,7 @@ ai-game-lab/
 │   │       ├── brain/
 │   │       │   ├── agent.py     # BrainAgent (persona, goal, task, skills, tools)
 │   │       │   ├── skills.py    # skill registry + prompt injection
+│   │       │   ├── strategies.py# brain presets (Aggressive/Defensive/Neutral) + admin list
 │   │       │   ├── tools.py     # tool registry + permission check
 │   │       │   ├── sensors.py   # perception
 │   │       │   ├── memory.py    # short-term memory (rally history)

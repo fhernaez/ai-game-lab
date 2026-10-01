@@ -63,11 +63,13 @@ touch. The core scores when the ball lands.
 
 - `core/physics.py` — trajectory (`resolve_shot`), `flight_time`, `reach_time`/`can_reach`.
 - `brain/decision.py` — the message + decision protocol (ball hit **and** the player's own
-  `move_to`/`move_speed` movement) and the shared-rally-context prompt, which includes an
-  explicit court-coordinate guide so models return in-bounds targets.
+  `move_to`/`move_speed` movement) and the shared-rally-context prompt, which includes a
+  **side-specific** court-coordinate guide so models return in-bounds targets.
 - `events.py` — `DECISION` (with `from_pos`, `move_to`, `move_speed`), `TRAJECTORY`,
   `INTERCEPT`, `BLOCK`, `POINT`, etc.
 - Every agent's message is accumulated and shared to later agents in the rally.
+- Every touch emits a `TRAJECTORY` (serve, dig, set, and the final attack), so the
+  graphical simulation shows the ball travelling continuously between players.
 
 The deterministic core also enforces the fault set — `net`, `out`, `net_touch`,
 `illegal_attack`, `four_touches` — and attempts a `BLOCK` on fast attacks. Players'
@@ -110,10 +112,16 @@ add templates, and a nav link in `base.html`.
 ### 4.5 Customize the court animation
 
 The simulation is a set of ES modules in `app/web/static/js/sim/` (`court.js`,
-`renderer.js`, `replay.js`, `live.js`, `main.js`), loaded from
+`renderer.js`, `replay.js`, `live.js`, `main.js`, `players.js`), loaded from
 `matches/view.html` as `<script type="module">`. It consumes only
 `/api/matches/<id>/state` and `/events`. No other code depends on it — replace or
 upgrade it freely.
+
+Players are drawn as **humanoid figures** (`players.js`): a procedural stick figure
+whose limbs are posed per movement (with a front/back view and left/right mirroring),
+or a sprite loaded from `app/web/static/img/players/` (named
+`{team}-{view}-{action}.png`), which overrides the procedural figure. Drop new sprites
+in that folder to change the look without code.
 
 ### 4.6 The Advanced view
 
@@ -121,6 +129,14 @@ A player's config is stored as structured JSON (`brain` + `body`). The Advanced 
 (`teams/advanced.html`) serializes it read-only into the file view (`agent.md`,
 `skills/*.md`, `tools.yaml`, `body.yaml`) via `brain/render.py` and `core/render.py`.
 Editing happens through the structured form in `teams/configure.html`.
+
+### 4.7 Strategy presets
+
+`brain/strategies.py` defines three brain-level presets (Aggressive / Defensive /
+Neutral) that pre-fill a player's persona, goal, skills, tools, and model parameters.
+The admin manages them in **Settings → Strategy presets** (`strategy_presets`
+`AppSetting`); the team configuration applies a chosen strategy to both players at save
+time. This is the brain counterpart to the body **archetypes** in `body/parameters.py`.
 
 ## 5. Conventions
 

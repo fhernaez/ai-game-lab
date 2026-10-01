@@ -40,6 +40,9 @@ tactics; the **body** (attributes) determines whether the execution succeeds.
   - `Y` = length, range `0..16` (end lines at 0 and 16; **net at Y = 8.0**).
   - `Z` = height, range `0..5` (net top at **2.43** m).
 - Lines are **in bounds**.
+- **"Own half" and "opponent's half" are side-relative.** A team defending the LEFT half
+  owns `y 0..8` and attacks into `y 8..16`; a team defending the RIGHT half owns `y 8..16`
+  and attacks into `y 0..8`. The prompt teaches this per side (see §5).
 
 ## 3. Match structure and rules
 
@@ -141,10 +144,15 @@ decision** that covers **both** the ball hit and the player's own movement:
 - `move_to` — the court position the player moves to (destination).
 - `move_speed` — how fast the player sprints there (0.1 slow .. 1.0 elite).
 
-The prompt sent to the LLM includes an explicit **court-coordinate guide** (see §2): `x`
-runs 0..8 across the court, `y` runs 0..16 down the court, and the net is at `y = 8`.
-The guide states that `target` must land in the opponent's half and `move_to` must stay
-in the player's own half, so models do not return out-of-range or own-half coordinates.
+The prompt sent to the LLM includes an explicit, **side-specific court-coordinate guide**
+(see §2): `x` runs 0..8 across the court, `y` runs 0..16 down the court, and the net is
+at `y = 8`. The guide tells the player which half it defends, where its end line is, and
+that `target` must land in the opponent's half while `move_to` stays in its own half, so
+models do not return out-of-range or own-half coordinates.
+
+Every touch of a rally emits a ball trajectory — the **serve**, the **dig** (first touch),
+the **set** (second touch), and the final **attack** — so the graphical simulation shows
+the ball travelling continuously from one player to the next.
 
 The **serve is taken from behind the end line** (outside the court); after serving, the
 player moves inside to their `move_to`. The decision is then executed by the
@@ -194,6 +202,22 @@ reserved for a future version.)
 - **THE SHARP-SHOOTER (Tactician)** — finesse over force, placements over power.
   Allocates: Sniper Vision, Set Precision, Dig & Serve Receive, Sand Speed.
 
+### 6.2 Strategy presets (brain setup, applies to both players)
+
+Alongside the body **archetypes**, the user picks a **strategy** that pre-fills the
+players' *brains* (persona, goal, skills, tools, and model parameters). Three defaults
+are seeded, and the admin can create more:
+
+- **Aggressive** — attack-first: hard serves and spikes, high risk. Persona "fearless
+  attacker", goal "win fast with a hard attack", skills `smart_serve`/`placement_attack`,
+  tools `serve, spike, place, block`, higher `temperature`.
+- **Defensive** — defense-first: dig everything, force the error. Persona "patient
+  defender", goal "keep the ball alive", skills `deep_defense`/`smart_serve`, tools
+  `serve, dig, set, place`, lower `temperature`.
+- **Neutral** — balanced, all three skills and all six tools, default `temperature`.
+
+Strategies are stored in the `strategy_presets` AppSetting and managed by the admin.
+
 ---
 
 ## 7. Match flow (multiuser)
@@ -233,6 +257,9 @@ Requirements:
 - A visible "running…" indicator while the worker is executing.
 - The animation polls the event stream live (events are persisted incrementally by the
   worker) and is replayable from the stored event log.
+- Players are drawn as **humanoid animated figures** (sprites stored in
+  `app/web/static/img/players/`, one per movement — idle, run, serve, dig, set, spike,
+  block, jump), with a procedural stick-figure fallback when no sprite is present.
 
 ---
 

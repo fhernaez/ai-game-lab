@@ -4,7 +4,7 @@ from flask_login import current_user, login_required
 from ..application import settings_service, team_service
 from ..domain.volleyball.body import actuators, parameters as body_parameters
 from ..domain.volleyball.brain import render as brain_render
-from ..domain.volleyball.brain import sensors, skills, tools
+from ..domain.volleyball.brain import sensors, skills, strategies as strategies_mod, tools
 from ..domain.volleyball.core import render as core_render
 from ..extensions import db
 from ..infrastructure.llm import provider_ids
@@ -49,6 +49,7 @@ def configure(match_id):
         attribute_descriptions=body_parameters.ATTRIBUTE_DESCRIPTIONS,
         attribute_effects=body_parameters.ATTRIBUTE_EFFECTS,
         archetypes=body_parameters.ARCHETYPES,
+        strategies=settings_service.get_strategies(),
         actuator_keys=actuators.ACTUATOR_KEYS,
         actuators=actuators.ACTUATORS,
         sensors=sensors.SENSORS,
@@ -81,6 +82,8 @@ def _save_team(team, match):
     form = request.form
     cfg = dict(team.configuration_json or {})
     cfg["strategy"] = form.get("strategy", "")
+    cfg["strategy_preset"] = form.get("strategy_preset", "") or None
+    selected_strategy = settings_service.get_strategies().get(form.get("strategy_preset", ""))
 
     archetype = form.get("archetype", "")
     for p in team.players:
@@ -117,6 +120,10 @@ def _save_team(team, match):
             form.get(f"presence_penalty_{p.id}"), params.get("presence_penalty", 0.0)
         )
         brain["params"] = params
+
+        # A chosen strategy overrides persona/goal/skills/tools/params for both players.
+        if selected_strategy:
+            brain = strategies_mod.apply_strategy(brain, selected_strategy)
 
         pcfg["brain"] = brain
         pcfg["body"] = body

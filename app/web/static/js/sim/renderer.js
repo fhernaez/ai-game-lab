@@ -4,7 +4,8 @@
  * depth-scaled players, and a shaded ball with a ground shadow and motion trail.
  */
 
-import { WORLD, TEAM_COLORS, Perspective } from "./court.js";
+import { WORLD, Perspective } from "./court.js";
+import { drawPlayerFigure } from "./players.js";
 
 const BALL_R = 6;
 
@@ -223,8 +224,12 @@ export class Renderer {
     const ctx = this.ctx;
     const P = this.proj;
     const pp = P.project(pl.x, pl.y, 0);
-    const r = 14 * pp.s;
+    const s = pp.s;
+    const action = pl.action || "idle";
+    const view = pl.y < WORLD.NET_Y ? "back" : "front";
+    const facing = pl.facing || 1;
 
+    const r = 14 * s;
     let pr = r;
     if (state.pulse && typeof state.pulse[i] === "number" && t - state.pulse[i] < 350) pr = r * 1.35;
 
@@ -232,23 +237,17 @@ export class Renderer {
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(pp.x, pp.y, pr + 4 * pp.s, 0, Math.PI * 2);
+      ctx.ellipse(pp.x, pp.y, pr + 2, (pr + 2) * 0.5, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    ctx.fillStyle = TEAM_COLORS[pl.teamIndex];
-    ctx.strokeStyle = "#0f172a";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(pp.x, pp.y, pr, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    drawPlayerFigure(ctx, pp.x, pp.y, s, pl.teamIndex, view, action, facing, t);
 
-    ctx.fillStyle = "#0f172a";
-    ctx.font = `bold ${Math.max(9, 11 * pp.s)}px system-ui`;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${Math.max(9, 10 * s)}px system-ui`;
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(pl.label, pp.x, pp.y + 1);
+    ctx.textBaseline = "bottom";
+    ctx.fillText(pl.label, pp.x, pp.y - 40 * s);
   }
 
   drawServeBadge(state) {

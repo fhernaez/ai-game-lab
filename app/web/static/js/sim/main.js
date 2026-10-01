@@ -5,6 +5,7 @@
 import { Renderer } from "./renderer.js";
 import { ReplayEngine } from "./replay.js";
 import { LiveClient } from "./live.js";
+import { loadPlayerSprites } from "./players.js";
 
 const $ = (id) => document.getElementById(id);
 const LIVE = new Set(["queued", "accepted", "ready", "running"]);
@@ -99,6 +100,7 @@ function logEvent(logEl, ev) {
 
   const renderer = new Renderer(canvas);
   window.addEventListener("resize", () => renderer.resize());
+  loadPlayerSprites();
 
   const stateRes = await (await fetch(`/api/matches/${matchId}/state`)).json();
   const teams = stateRes.teams || [];

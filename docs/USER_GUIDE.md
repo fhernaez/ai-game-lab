@@ -114,6 +114,17 @@ up an agent: `agent.md` (persona/goal/task), `skills/*.md` (the playbook), `tool
 read-only here — you edit them through the structured form. The **Core files** section
 shows the game's rules, physics, and referee (read-only for students).
 
+### 4.6 Strategy preset (Aggressive / Defensive / Neutral)
+
+The **Strategy preset** selector pre-fills both players' *brains* (persona, goal, skills,
+tools, and model parameters) with a ready-made tactical style:
+
+- **Aggressive** — hard serves and spikes, high risk, high reward.
+- **Defensive** — dig everything, keep the ball alive, force the opponent's error.
+- **Neutral** — balanced, all-round play.
+
+Administrators can add more alternatives in **Settings → Strategy presets**.
+
 ---
 
 ## 5. The match
@@ -122,14 +133,14 @@ Open **Matchmaking → your match**, or **History → View**.
 
 ### 5.1 The graphical simulation
 
-A simple but accurate court animation shows the four players and the ball: each shot is a
-**ball flight with a real trajectory and flight time** (the ball is drawn **larger when
-high, smaller when low**), and players **move smoothly** to the destination they choose in
-each decision — whoever reaches the ball first plays the next touch. Blocks, net touches,
-and faults are shown as they happen. Each serve starts **from behind the end line**, then
-the server moves inside. A live scoreboard shows sets and current points, and a
-**"▶ Match running…"** indicator confirms the match is in progress (events stream live
-while the worker executes). The animation is a separate, replaceable module.
+A 2.5D perspective court shows the four players and the ball: each shot is a **ball flight
+with a real trajectory and flight time** (the ball is drawn larger when high, with a ground
+shadow and motion trail), and players — drawn as **animated humanoid figures** — run, jump,
+serve, dig, set, spike, and block as they move smoothly to each decision's destination.
+Whoever reaches the ball first plays the next touch. Blocks, net touches, and faults are
+shown as they happen. Each serve starts from behind the end line. A live scoreboard shows
+sets and points, and a **"▶ Match running…"** indicator confirms the match is in progress.
+The animation is a separate, replaceable module.
 
 ### 5.2 The interaction log
 

@@ -22,6 +22,15 @@
       {% endfor %}
     </select>
     <p class="muted" id="archetype-desc"></p>
+
+    <label>Strategy preset (applies to both players, overrides brain settings)</label>
+    <select name="strategy_preset" id="strategy-preset-select">
+      <option value="">— custom —</option>
+      {% for sid, s in strategies.items() %}
+      <option value="{{ sid }}" {% if team.configuration_json.get('strategy_preset') == sid %}selected{% endif %}>{{ s.get('name', sid) }}</option>
+      {% endfor %}
+    </select>
+    <p class="muted" id="strategy-preset-desc"></p>
   </div>
 
   {% for p in team.players | sort(attribute='slot') %}
@@ -186,6 +195,14 @@
       }
     });
     recompute();
+  });
+
+  const STRATEGIES = {{ strategies | tojson }};
+  const strategySelect = document.getElementById('strategy-preset-select');
+  const strategyDesc = document.getElementById('strategy-preset-desc');
+  strategySelect.addEventListener('change', () => {
+    const s = STRATEGIES[strategySelect.value];
+    strategyDesc.textContent = s ? (s.description || '') : '';
   });
 </script>
 {% endblock %}

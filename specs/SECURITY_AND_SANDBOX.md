@@ -50,6 +50,12 @@ only their own team; opponent attributes are hidden until revealed by the game.
 - Only `admin` users can edit the core files. Critical parameters show a caution legend,
   and the admin can always **restore defaults**.
 
+## Strategy presets (authorization)
+
+Strategy presets (Aggressive / Defensive / Neutral) are admin-managed data stored as JSON
+in `AppSetting`. They are plain configuration (persona/goal/skills/tools/params), never
+executed code; only `admin` users can create/edit them.
+
 ## User administration (authorization)
 
 - Only `admin` users may create/edit/delete accounts and change roles.

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Strategies — AI Game Lab{% endblock %}
+{% block content %}
+<h1>Strategy presets</h1>
+<p class="muted">Brain-level presets that pre-fill a player's persona, goal, skills, tools, and
+model parameters. The three defaults are seeded; you can add or edit alternatives.</p>
+
+{% if is_admin %}
+<form method="post">
+  {% for sid, s in strategies.items() %}
+  {% set b = s.get('brain') or {} %}
+  {% set params = b.get('params') or {} %}
+  <div class="panel">
+    <div class="row" style="justify-content: space-between;">
+      <h3 style="margin:0;">{{ s.get('name', sid) }} <code class="muted">{{ sid }}</code></h3>
+      <button class="btn btn-danger btn-sm" type="submit" name="delete_id" value="{{ sid }}"
+              onclick="return confirm('Delete strategy {{ sid }}?');">Delete</button>
+    </div>
+    <input type="hidden" name="sid" value="{{ sid }}">
+
+    <div class="grid grid-2">
+      <div>
+        <label>Name</label>
+        <input type="text" name="{{ sid }}_name" value="{{ s.get('name', '') }}">
+        <label>Description</label>
+        <input type="text" name="{{ sid }}_description" value="{{ s.get('description', '') }}">
+        <label>What it is</label>
+        <input type="text" name="{{ sid }}_what" value="{{ s.get('what', '') }}">
+        <label>Effect</label>
+        <input type="text" name="{{ sid }}_effect" value="{{ s.get('effect', '') }}">
+      </div>
+      <div>
+        <label>Persona <span class="muted">— who the player is</span></label>
+        <textarea name="{{ sid }}_persona" rows="2">{{ b.get('persona', '') }}</textarea>
+        <label>Goal <span class="muted">— what the player wants</span></label>
+        <input type="text" name="{{ sid }}_goal" value="{{ b.get('goal', '') }}">
+        <label>Temperature</label>
+        <input type="number" step="0.1" name="{{ sid }}_temperature" value="{{ params.get('temperature', 0.7) }}">
+      </div>
+    </div>
+
+    <label>Skills (playbook)</label>
+    <div class="checks">
+      {% for sk in skill_options %}
+      <label class="check">
+        <input type="checkbox" name="{{ sid }}_skills" value="{{ sk.id }}"
+               {% if sk.id in (b.get('skills') or []) %}checked{% endif %}>
+        <span>{{ sk.title }}</span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <label>Tools (what the player can do)</label>
+    <div class="checks">
+      {% for t in tool_keys %}
+      <label class="check">
+        <input type="checkbox" name="{{ sid }}_tools" value="{{ t }}"
+               {% if t in (b.get('tools') or []) %}checked{% endif %}>
+        <span>{{ t }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="panel">
+    <h3>New strategy</h3>
+    <div class="grid grid-2">
+      <div>
+        <label>Id (lowercase, no spaces)</label>
+        <input type="text" name="new_sid" value="">
+        <label>Name</label>
+        <input type="text" name="new_name" value="">
+        <label>Description</label>
+        <input type="text" name="new_description" value="">
+        <label>What it is</label>
+        <input type="text" name="new_what" value="">
+        <label>Effect</label>
+        <input type="text" name="new_effect" value="">
+      </div>
+      <div>
+        <label>Persona</label>
+        <textarea name="new_persona" rows="2"></textarea>
+        <label>Goal</label>
+        <input type="text" name="new_goal" value="">
+        <label>Temperature</label>
+        <input type="number" step="0.1" name="new_temperature" value="0.7">
+      </div>
+    </div>
+    <label>Skills</label>
+    <div class="checks">
+      {% for sk in skill_options %}
+      <label class="check"><input type="checkbox" name="new_skills" value="{{ sk.id }}"><span>{{ sk.title }}</span></label>
+      {% endfor %}
+    </div>
+    <label>Tools</label>
+    <div class="checks">
+      {% for t in tool_keys %}
+      <label class="check"><input type="checkbox" name="new_tools" value="{{ t }}"><span>{{ t }}</span></label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="row" style="margin-bottom: 1rem;">
+    <button class="btn" type="submit">Save all strategies</button>
+    <button class="btn btn-danger" type="submit" name="restore" value="1"
+            onclick="return confirm('Restore the default strategies?');">Restore defaults</button>
+  </div>
+</form>
+{% else %}
+<p class="muted">Only administrators can edit strategy presets.</p>
+{% endif %}
+{% endblock %}

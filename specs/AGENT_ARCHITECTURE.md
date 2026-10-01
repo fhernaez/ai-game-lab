@@ -103,9 +103,13 @@ LLM "knows" the strategy.
   opponent's hidden attributes.
 - **Memory** — a small short-term memory: the messages of the current rally. There is no
   long-term memory in this version.
-- **Prompt** — assembled from the pieces above plus an explicit court-coordinate guide
-  (`x` 0..8 across, `y` 0..16 down, net at `y = 8`), so the model returns in-bounds
-  targets and legal movement.
+- **Prompt** — assembled from the pieces above plus a **side-specific** court-coordinate
+  guide (`x` 0..8 across, `y` 0..16 down, net at `y = 8`), so the model knows which half
+  it defends, where its end line is, and returns in-bounds targets and legal movement.
+- **Strategy** — a brain-level preset (persona, goal, skills, tools, model parameters)
+  chosen in the team configuration. Three defaults (Aggressive / Defensive / Neutral) are
+  seeded and the admin can add more. Distinct from body archetypes, which set the 7
+  athlete attributes.
 
 ---
 

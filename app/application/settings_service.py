@@ -1,7 +1,8 @@
-"""Admin settings: per-provider model lists, the global default model, and the core files."""
+"""Admin settings: per-provider model lists, the global default model, core files, and strategy presets."""
 
 from flask import current_app
 
+from ..domain.volleyball.brain import strategies
 from ..domain.volleyball.core import defaults
 from ..extensions import db
 from ..models import AppSetting
@@ -11,6 +12,7 @@ DEFAULT_MODEL_KEY = "default_model"
 CORE_RULES_KEY = "core_rules"
 CORE_PHYSICS_KEY = "core_physics"
 CORE_REFEREE_KEY = "core_referee"
+STRATEGIES_KEY = "strategy_presets"
 
 
 def _get(key, default=None):
@@ -110,4 +112,30 @@ def get_referee_md():
 
 def set_referee_md(text):
     _set(CORE_REFEREE_KEY, (text or "").strip() or defaults.REFEREE_MD)
+
+
+def get_strategies():
+    """Return the strategy presets (admin overrides merged over the defaults)."""
+    merged = strategies.default_strategies()
+    saved = _get(STRATEGIES_KEY)
+    if saved:
+        merged.update(saved)
+    return merged
+
+
+def set_strategies(strategies_dict):
+    """Replace the admin's strategy presets (a dict keyed by strategy id)."""
+    clean = {}
+    for key, spec in (strategies_dict or {}).items():
+        if isinstance(spec, dict):
+            clean[str(key)] = spec
+    _set(STRATEGIES_KEY, clean)
+
+
+def reset_strategies():
+    """Remove all strategy overrides (restore the built-in defaults)."""
+    setting = AppSetting.query.filter_by(key=STRATEGIES_KEY).first()
+    if setting:
+        db.session.delete(setting)
+        db.session.commit()
 

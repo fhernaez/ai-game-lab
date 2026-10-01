@@ -16,10 +16,11 @@ GOAL
 TASK
 {{brain.task}}
 
-COURT COORDINATES (meters)
+COURT COORDINATES (meters) — side-relative
 - x = across the court: 0 (left sideline) to 8 (right sideline).
-- y = down the court: 0 (your end line) to 16 (the far end line).
-- The net is at y = 8 (2.43 m high).
+- y = down the court: 0 to 16; the net is at y = 8 (2.43 m high).
+- YOU defend the {{own_half_label}} half ({{own_half_range}}): your end line is {{own_end_line}}.
+- The OPPONENT's half is {{opponent_half_range}} — aim every target there.
 - target = where the ball lands (always in the OPPONENT's half).
 - move_to = where you run (always in YOUR half).
 
@@ -69,6 +70,18 @@ can attack. Your Set Precision determines how accurate the pass is.
 ```text
 You are at the net defending a fast attack. Jump to block; a clean block wins the point,
 a block touch counts as your first touch.
+```
+
+## Strategy presets (brain)
+
+```text
+Aggressive  — persona "fearless attacker", goal "win fast with a hard attack",
+              skills [smart_serve, placement_attack], tools [serve, spike, place, block],
+              temperature 0.9.
+Defensive   — persona "patient defender", goal "keep the ball alive and force the error",
+              skills [deep_defense, smart_serve], tools [serve, dig, set, place],
+              temperature 0.5.
+Neutral     — balanced: all three skills, all six tools, temperature 0.7.
 ```
 
 ## Educational explanations (UI)

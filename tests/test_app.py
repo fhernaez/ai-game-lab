@@ -487,8 +487,87 @@ def test_prompt_explains_coordinates():
 
     assert "COURT COORDINATES" in user
     assert "x = across the court" in user
-    assert "net crosses the court at y = 8" in user
+    assert "The net is at y = 8" in user
     assert "always in the OPPONENT" in user
     assert "always in YOUR half" in user
     # the ball is now labelled x/y/z explicitly
     assert "ball (x=" in user
+
+
+def test_prompt_coordinates_side_specific():
+    from app.domain.volleyball.brain import decision
+    from app.domain.volleyball.core.world import CourtState
+
+    brain = {"persona": "", "goal": "", "tools": [], "skills": [], "sensors": [], "params": {}}
+
+    # LEFT player (team 0 defends half 0).
+    state = CourtState()
+    left = decision.build_decision_prompt(brain, "T", "P", 1, state, "SERVE", [], 0)[1]["content"]
+    assert "YOU defend the LEFT (y 0..8)" in left
+    assert "The OPPONENT's half is y 8..16" in left
+
+    # RIGHT player (team 1 defends half 1).
+    right = decision.build_decision_prompt(brain, "T", "P", 1, state, "SERVE", [], 1)[1]["content"]
+    assert "YOU defend the RIGHT (y 8..16)" in right
+    assert "The OPPONENT's half is y 0..8" in right
+
+
+def test_dig_set_emit_trajectories(app):
+    from app.domain.volleyball.body.parameters import default_parameters
+    from app.domain.volleyball.engine import MatchEngine
+    from app.infrastructure.llm.mock import MockLLMProvider
+
+    def resolve(ref):
+        return MockLLMProvider(), "mock-model"
+
+    teams = []
+    for ti in range(2):
+        players = [
+            {"slot": s, "name": f"P{s}", "attributes": {k: 5 for k in default_parameters()}, "brain": {}}
+            for s in (1, 2)
+        ]
+        teams.append({"name": f"T{ti}", "instructions": "", "players": players})
+
+    engine = MatchEngine(teams, resolve, seed=11)
+    events, _, _ = engine.run()
+
+    rallies = []
+    current = []
+    for ev in events:
+        if ev["event_type"] == "RALLY_STARTED":
+            current = []
+        elif ev["event_type"] == "POINT" and current:
+            rallies.append(current)
+            current = []
+        else:
+            current.append(ev)
+
+    # The dig + set now emit ball trajectories, so an intercepted rally has >= 3.
+    assert any(sum(1 for e in r if e["event_type"] == "TRAJECTORY") >= 3 for r in rallies)
+
+
+def test_strategy_presets(app):
+    from app.application import settings_service
+    from app.domain.volleyball.brain import strategies as strategies_mod
+
+    with app.app_context():
+        strats = settings_service.get_strategies()
+        assert set(strats) >= {"aggressive", "defensive", "neutral"}
+
+        agg = strats["aggressive"]
+        assert agg["brain"]["persona"]
+        assert "spike" in agg["brain"]["tools"]
+
+        brain = strategies_mod.apply_strategy({}, agg)
+        assert brain["persona"] == agg["brain"]["persona"]
+        assert brain["tools"] == agg["brain"]["tools"]
+        assert brain["params"]["temperature"] == 0.9
+        assert brain["skills"]  # resolved to full skill dicts
+
+        # Admin can add a custom strategy; reset restores the defaults.
+        settings_service.set_strategies(
+            {"custom": {"name": "Custom", "brain": {"persona": "p", "goal": "g", "skills": [], "tools": ["serve"], "params": {"temperature": 0.3}}}}
+        )
+        assert "custom" in settings_service.get_strategies()
+        settings_service.reset_strategies()
+        assert "custom" not in settings_service.get_strategies()

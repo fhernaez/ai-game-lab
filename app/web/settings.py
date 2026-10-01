@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import current_user, login_required
 
 from ..application import settings_service
+from ..domain.volleyball.brain import skills as skills_mod, tools as tools_mod
 from ..domain.volleyball.core import defaults, render as core_render
 from ..infrastructure.llm import provider_ids
 
@@ -84,5 +85,71 @@ def core():
         referee_md=referee_md,
         rules_yaml=core_render.render_rules_yaml(effective),
         physics_yaml=core_render.render_physics_yaml(effective),
+        is_admin=is_admin,
+    )
+
+
+def _float(raw, default):
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def _strategy_from_form(prefix, form):
+    """Read a strategy's fields from the form using the given field-name prefix."""
+    return {
+        "name": form.get(f"{prefix}_name", "").strip(),
+        "description": form.get(f"{prefix}_description", "").strip(),
+        "what": form.get(f"{prefix}_what", "").strip(),
+        "effect": form.get(f"{prefix}_effect", "").strip(),
+        "brain": {
+            "persona": form.get(f"{prefix}_persona", "").strip(),
+            "goal": form.get(f"{prefix}_goal", "").strip(),
+            "skills": form.getlist(f"{prefix}_skills"),
+            "tools": form.getlist(f"{prefix}_tools"),
+            "params": {"temperature": _float(form.get(f"{prefix}_temperature"), 0.7)},
+        },
+    }
+
+
+@bp.route("/strategies", methods=["GET", "POST"])
+@login_required
+def strategies():
+    is_admin = current_user.role == "admin"
+
+    if request.method == "POST":
+        if not is_admin:
+            flash("Administrator access required.", "error")
+            return redirect(url_for("settings.strategies"))
+        if request.form.get("restore"):
+            settings_service.reset_strategies()
+            flash("Strategies reset to defaults.", "success")
+            return redirect(url_for("settings.strategies"))
+        delete_id = (request.form.get("delete_id") or "").strip()
+        if delete_id:
+            saved = settings_service.get_strategies()
+            saved.pop(delete_id, None)
+            settings_service.set_strategies(saved)
+            flash(f"Deleted strategy {delete_id!r}.", "success")
+            return redirect(url_for("settings.strategies"))
+
+        data = {}
+        for sid in request.form.getlist("sid"):
+            sid = sid.strip()
+            if sid:
+                data[sid] = _strategy_from_form(sid, request.form)
+        new_sid = (request.form.get("new_sid") or "").strip()
+        if new_sid:
+            data[new_sid] = _strategy_from_form("new", request.form)
+        settings_service.set_strategies(data)
+        flash("Strategies saved.", "success")
+        return redirect(url_for("settings.strategies"))
+
+    return render_template(
+        "settings/strategies.html",
+        strategies=settings_service.get_strategies(),
+        skill_options=skills_mod.DEFAULT_SKILLS,
+        tool_keys=tools_mod.TOOL_KEYS,
         is_admin=is_admin,
     )

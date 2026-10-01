@@ -201,6 +201,12 @@ class MatchEngine:
             d1, _ = self._decide(team_index, receiver, "DIG", state, events, usages, rally_history)
             rally_history.append(f"[{receiver['name']}] {d1['message']}")
             state.touches += 1
+            # The dig moves the ball from the intercept point toward the setter's area.
+            dig_landing = self._clamp_to_half(d1["target"], own_half)
+            dig_flight = physics.flight_time(landing, dig_landing, "DIG", d1["power"], receiver["attributes"], self.core)
+            state.ball = {"x": dig_landing[0], "y": dig_landing[1], "z": 0.0}
+            state.flight_time = dig_flight
+            self._trajectory(events, landing, state.ball, dig_flight, 0.0, team_index, receiver["slot"])
 
         # Touch 2: set (the partner).
         setter = self._other_player(team_index, receiver)
@@ -209,6 +215,12 @@ class MatchEngine:
         state.touches += 1
         set_point = [4.0, rules.net_y(self.core) - 1.2 if own_half == 0 else rules.net_y(self.core) + 1.2]
         self.positions[(team_index, setter["slot"])] = list(set_point)
+        # The set moves the ball from the dig/block-touch point to the attack point.
+        set_from = [state.ball["x"], state.ball["y"]]
+        set_flight = physics.flight_time(set_from, set_point, "SET", d2["power"], setter["attributes"], self.core)
+        state.ball = {"x": set_point[0], "y": set_point[1], "z": 0.0}
+        state.flight_time = set_flight
+        self._trajectory(events, set_from, state.ball, set_flight, 0.0, team_index, setter["slot"])
 
         # Touch 3: attack over the net.
         attacker = receiver if self.rng.random() < 0.5 else setter

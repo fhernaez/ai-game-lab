@@ -31,10 +31,11 @@ Keep the ball in play and set up the partner for a clean attack.
 TASK
 Defend and pass on the first touch.
 
-COURT COORDINATES (meters)
+COURT COORDINATES (meters) — side-relative
 - x = across the court: 0 (left sideline) to 8 (right sideline).
-- y = down the court: 0 (your end line) to 16 (the far end line).
-- The net crosses the court at y = 8 and is 2.43 m high.
+- y = down the court: 0 to 16; the net is at y = 8 (2.43 m high).
+- YOU defend the RIGHT half (y 8..16): your end line is y = 16.
+- The OPPONENT's half is y 0..8 — aim every target there.
 - target = where the ball lands (always in the OPPONENT's half).
 - move_to = where you run (always in YOUR half).
 
@@ -66,6 +67,11 @@ Return JSON: {"message": "...", "action": "...", "power": 0.0..1.0,
 - Student-authored text (persona, skills) is clearly marked as player configuration and
   must not replace platform or rules text.
 - Do not expose hidden chain-of-thought; the decision is a message + structured action.
+- The coordinate guide is **side-specific**: the prompt tells each player which half it
+  defends and which numeric range is the opponent's half, so the model does not aim into
+  its own side.
+- A chosen **strategy** pre-fills persona/goal/skills/tools/params before these sections
+  are rendered.
 
 ## Output protocol
 

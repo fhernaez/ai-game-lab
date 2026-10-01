@@ -13,6 +13,11 @@ const FLIGHT_DUR = (ft) => Math.max(350, Math.min(2200, (ft || 0.5) * FLIGHT_SCA
 // Home positions, aligned with engine._home_position (team -> slot -> [x, y]).
 const HOME = { 0: { 1: [2.5, 3.0], 2: [5.5, 5.0] }, 1: { 1: [2.5, 13.0], 2: [5.5, 11.0] } };
 
+// action_hint / parsed action -> pose key for the humanoid figure.
+const ACTION_POSE = {
+  SERVE: "serve", DIG: "dig", SET: "set", SPIKE: "spike", PLACE: "spike", BLOCK: "block",
+};
+
 function normalizePos(v) {
   if (!v) return null;
   if (Array.isArray(v)) return { x: v[0], y: v[1], z: 0 };
@@ -40,6 +45,8 @@ export class MatchState {
           label: `${ti === 0 ? "A" : "B"}${p.slot}`,
           x: home[0],
           y: home[1],
+          action: "idle",
+          facing: 1,
         });
       });
     });
@@ -85,14 +92,20 @@ export class ReplayEngine {
     });
 
     let cursor = 0;
-    const push = (type, dur, data) => {
-      segments.push({ type, start: cursor, dur, end: cursor + dur, ...data });
-      cursor += dur;
+    // A concurrent segment shares the start of the preceding ball flight (the
+    // receiver's run happens *during* the flight, meeting the ball at landing).
+    const push = (type, dur, data, startOverride) => {
+      const start = startOverride === undefined ? cursor : startOverride;
+      segments.push({ type, start, dur, end: start + dur, ...data });
+      if (startOverride === undefined) cursor += dur;
     };
+    let lastBall = null;
 
     for (const ev of this.events) {
       const p = ev.payload || {};
       const k = key(p.team_name, p.slot);
+      // Only an INTERCEPT immediately after a TRAJECTORY reuses the flight timing.
+      if (ev.event_type !== "INTERCEPT") lastBall = null;
 
       if (ev.event_type === "RALLY_STARTED") {
         const positions = [];
@@ -115,16 +128,27 @@ export class ReplayEngine {
             push("move", 400, { teamName: p.team_name, slot: p.slot, from: home, to: from });
           }
         }
-        push("move", MOVE_DUR(speed), { teamName: p.team_name, slot: p.slot, from, to, actor: true, serve: p.action_hint === "SERVE" });
+        push("move", MOVE_DUR(speed), {
+          teamName: p.team_name, slot: p.slot, from, to,
+          actor: true, serve: p.action_hint === "SERVE",
+          action: ACTION_POSE[(p.parsed && p.parsed.action) || p.action_hint] || "run",
+        });
         pos[k] = to;
       } else if (ev.event_type === "TRAJECTORY") {
         const from = normalizePos(p.from_ball) || { x: 4, y: 8, z: 0 };
         const to = p.ball || from;
         const peak = Math.max(2.0, (p.flight_time || 0.5) * 3.5);
-        push("ball", FLIGHT_DUR(p.flight_time), { from, to, peak });
+        const dur = FLIGHT_DUR(p.flight_time);
+        push("ball", dur, { from, to, peak });
+        lastBall = { start: segments[segments.length - 1].start, dur };
       } else if (ev.event_type === "INTERCEPT") {
         const from = pos[k] || p.at;
-        push("move", MOVE_DUR(0.7), { teamName: p.team_name, slot: p.slot, from, to: p.at });
+        if (lastBall) {
+          // The receiver runs during the flight and meets the ball at landing.
+          push("move", lastBall.dur, { teamName: p.team_name, slot: p.slot, from, to: p.at }, lastBall.start);
+        } else {
+          push("move", MOVE_DUR(0.7), { teamName: p.team_name, slot: p.slot, from, to: p.at });
+        }
         pos[k] = p.at;
       } else if (ev.event_type === "BLOCK") {
         push("pulse", 350, { teamName: p.team_name, slot: p.slot });
@@ -158,8 +182,12 @@ export class ReplayEngine {
       } else if (to) {
         st.setPos(idx, to[0], to[1]);
       }
+      if (from && to && to[0] !== from[0]) {
+        st.players[idx].facing = to[0] > from[0] ? 1 : -1;
+      }
       if (seg.actor) st.lastActor = idx;
       if (seg.serve) st.server = idx;
+      st.players[idx].action = seg.action || "run";
     } else if (seg.type === "form") {
       (seg.positions || []).forEach((pp) => {
         const idx = st.find(pp.teamName, pp.slot);
@@ -169,6 +197,7 @@ export class ReplayEngine {
         } else if (pp.to) {
           st.setPos(idx, pp.to[0], pp.to[1]);
         }
+        st.players[idx].action = "run";
       });
     } else if (seg.type === "ball") {
       const f = seg.from;
@@ -178,7 +207,10 @@ export class ReplayEngine {
       st.ball.z = local >= 1 ? t.z || 0 : Math.sin(Math.PI * local) * seg.peak;
     } else if (seg.type === "pulse") {
       const idx = st.find(seg.teamName, seg.slot);
-      if (idx >= 0) st.pulse[idx] = seg.start;
+      if (idx >= 0) {
+        st.pulse[idx] = seg.start;
+        st.players[idx].action = "block";
+      }
     } else if (seg.type === "score" && seg.state) {
       const s = seg.state;
       if (Array.isArray(s.set_points)) st.score.points = s.set_points;

@@ -14,7 +14,7 @@ Build a clean, maintainable, extensible Flask application where students:
 2. create a match (choose difficulty) and invite another online player
 3. accept/decline an invitation
 4. configure their team of 2 players through a **simple GUI** (sliders, archetypes,
-   model) **and an Advanced file view** (persona, skills, tools, body parameters)
+   strategy, model) **and an Advanced file view** (persona, skills, tools, body parameters)
 5. mark ready; the match starts when both are ready
 6. watch the graphical match simulation (players + ball on the court)
 7. read the interaction log (message, tool, skill, parameters, outcome per play)
@@ -79,13 +79,18 @@ resolves. Implement:
 Validate: action ∈ agent's tools → clamp power/target → clamp `move_to` to the player's
 own half. On invalid output, fall back to a deterministic default.
 
+The prompt's **coordinate guide is side-specific**: it tells each player which half it
+defends and which numeric range is the opponent's half (see `PROMPT_ARCHITECTURE.md`), so
+right-side players do not aim into their own half.
+
 ## Testing requirements
 
 Implement tests for: authentication+presence, user administration, team configuration
-(sliders/budget/archetypes), the Advanced file view (render/save/round-trip), core-file
-read-only + admin edit + restore defaults, brain tools permission check, skills injected
-into the prompt, `what`/`effect` presence, volleyball rules + faults, physics
-determinism, match lifecycle, interaction-log persistence, history.
+(sliders/budget/archetypes/strategies), the Advanced file view (render/save/round-trip),
+core-file read-only + admin edit + restore defaults, brain tools permission check, skills
+injected into the prompt, the side-specific coordinate guide, dig/set/attack ball
+trajectories, `what`/`effect` presence, volleyball rules + faults, physics determinism,
+match lifecycle, interaction-log persistence, history.
 
 ## Implementation order
 
