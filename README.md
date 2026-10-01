@@ -161,6 +161,14 @@ Website: [domah.com.ar](https://domah.com.ar)
 
 ---
 
+## License
+
+Released under the **MIT License** — see [LICENSE](LICENSE). You are free to use,
+modify, and share this project with attribution. Contributions are governed by
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
 ## Project structure
 
 ```
